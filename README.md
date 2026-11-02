@@ -83,8 +83,8 @@ so you can **screen‑record it as a UGC / reel video**, or just show it to anyo
 to explain BRAHM Drop.
 
 - **Open it live (no download):**
-  https://htmlpreview.github.io/?https://raw.githubusercontent.com/yaandroid/BRAHMDrop/phase3-remote-and-apk/docs/index.html
-- Or enable **GitHub Pages** (Settings → Pages → Branch: `phase3-remote-and-apk`, folder `/docs`)
+  https://htmlpreview.github.io/?https://raw.githubusercontent.com/yaandroid/BRAHMDrop/main/docs/index.html
+- Or enable **GitHub Pages** (Settings → Pages → Branch: `main`, folder `/docs`)
   and it will be served at `https://yaandroid.github.io/BRAHMDrop/`.
 - To record: open the page, frame the phone/stage (the Replay button sits outside
   the 9:16 area, so it won’t appear in the recording), and screen‑record.
