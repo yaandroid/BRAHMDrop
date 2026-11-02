@@ -7,8 +7,10 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -18,18 +20,20 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
 /**
- * MainActivity starts the background server service and shows the BRAHM Drop
- * web UI in a WebView pointed at the local server.
+ * MainActivity requests the media/file permissions from code, starts the
+ * background server service, and shows the BRAHM Drop web UI in a WebView.
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var web: WebView
     private var fileCallback: ValueCallback<Array<Uri>>? = null
+    private var hadAllFiles = false
+    private var serverStarted = false
 
+    // --- file picker for the WebView "Choose files" button ---
     private val filePicker = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -46,12 +50,28 @@ class MainActivity : AppCompatActivity() {
         fileCallback = null
     }
 
+    // --- runtime permission request (media / storage) ---
+    private val permReq = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        // Whatever the result, continue: picking files still works via the
+        // system picker, and all-files access is requested separately.
+        ensureAllFilesAccess()
+    }
+
+    // --- "All files access" settings return ---
+    private val allFilesReq = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        // Restart the server so it picks the public Downloads folder if granted.
+        restartServerIfNeeded()
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        requestNotifPermissionIfNeeded()
-        startServer()
+        requestInitialPermissions()
 
         web = WebView(this)
         setContentView(web)
@@ -69,7 +89,6 @@ class MainActivity : AppCompatActivity() {
             override fun onReceivedError(
                 view: WebView?, request: WebResourceRequest?, error: WebResourceError?
             ) {
-                // Server may still be booting — retry shortly.
                 Handler(Looper.getMainLooper()).postDelayed({ loadApp() }, 700)
             }
         }
@@ -86,6 +105,10 @@ class MainActivity : AppCompatActivity() {
                     type = "*/*"
                     addCategory(Intent.CATEGORY_OPENABLE)
                     putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                    putExtra(
+                        Intent.EXTRA_MIME_TYPES,
+                        arrayOf("image/*", "video/*", "audio/*", "application/*", "text/*", "*/*")
+                    )
                 }
                 return try {
                     filePicker.launch(Intent.createChooser(intent, "Choose files"))
@@ -97,13 +120,75 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Give the server a moment to bind, then load.
+        hadAllFiles = hasAllFilesAccess()
+        startServer()
         Handler(Looper.getMainLooper()).postDelayed({ loadApp() }, 900)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        restartServerIfNeeded()
     }
 
     private fun loadApp() {
         web.loadUrl("http://127.0.0.1:${BrahmService.PORT}/")
     }
+
+    // ---- permissions ----
+
+    private fun requestInitialPermissions() {
+        val perms = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+
+            perms += Manifest.permission.READ_MEDIA_IMAGES
+            perms += Manifest.permission.READ_MEDIA_VIDEO
+            perms += Manifest.permission.READ_MEDIA_AUDIO
+            perms += Manifest.permission.POST_NOTIFICATIONS
+        } else {
+            perms += Manifest.permission.READ_EXTERNAL_STORAGE
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                perms += Manifest.permission.WRITE_EXTERNAL_STORAGE
+            }
+        }
+        val missing = perms.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isNotEmpty()) {
+            permReq.launch(missing.toTypedArray())
+        } else {
+            ensureAllFilesAccess()
+        }
+    }
+
+    private fun hasAllFilesAccess(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            ContextCompat.checkSelfPermission(
+                this, Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED || Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        }
+    }
+
+    /** On Android 11+, send the user to the "All files access" screen once. */
+    private fun ensureAllFilesAccess() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+            try {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                    Uri.parse("package:$packageName")
+                )
+                allFilesReq.launch(intent)
+            } catch (e: Exception) {
+                try {
+                    allFilesReq.launch(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                } catch (_: Exception) {
+                }
+            }
+        }
+    }
+
+    // ---- background server service ----
 
     private fun startServer() {
         val svc = Intent(this, BrahmService::class.java)
@@ -112,17 +197,22 @@ class MainActivity : AppCompatActivity() {
         } else {
             startService(svc)
         }
+        serverStarted = true
     }
 
-    private fun requestNotifPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                ActivityCompat.requestPermissions(
-                    this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1
-                )
-            }
+    /** If "all files access" just became available, restart so received files
+     *  go to the public Downloads folder. */
+    private fun restartServerIfNeeded() {
+        val now = hasAllFilesAccess()
+        if (serverStarted && now && !hadAllFiles) {
+            hadAllFiles = true
+            stopService(Intent(this, BrahmService::class.java))
+            Handler(Looper.getMainLooper()).postDelayed({
+                startServer()
+                loadApp()
+            }, 500)
+        } else {
+            hadAllFiles = now
         }
     }
 

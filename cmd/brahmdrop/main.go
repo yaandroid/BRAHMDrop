@@ -31,9 +31,10 @@ func main() {
 		name     = flag.String("name", "", "device name shown to other devices")
 		port     = flag.Int("port", 0, "HTTP/transfer port (default 53330)")
 		dir      = flag.String("dir", "", "folder where received files are saved")
-		noBrowse = flag.Bool("no-browser", false, "do not open the web UI in a browser")
-		remoteOn = flag.Bool("remote", false, "start remote-desktop hosting immediately")
-		showVer  = flag.Bool("version", false, "print version and exit")
+		noBrowse   = flag.Bool("no-browser", false, "do not open the web UI in a browser")
+		remoteOn   = flag.Bool("remote", false, "start remote-desktop hosting immediately")
+		autoAccept = flag.Bool("auto-accept", false, "accept incoming files automatically (no prompt)")
+		showVer    = flag.Bool("version", false, "print version and exit")
 	)
 	flag.Parse()
 
@@ -56,6 +57,9 @@ func main() {
 	if *dir != "" {
 		cfg.SaveDir = *dir
 		_ = os.MkdirAll(cfg.SaveDir, 0o755)
+	}
+	if *autoAccept {
+		cfg.AutoAccept = true
 	}
 	_ = cfg.Save()
 

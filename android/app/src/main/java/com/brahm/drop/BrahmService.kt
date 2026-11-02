@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Environment
 import android.os.IBinder
 import android.util.Log
 import java.io.File
@@ -59,12 +60,13 @@ class BrahmService : Service() {
                 Log.e(TAG, "server binary missing at ${bin.absolutePath}")
                 return
             }
-            val saveDir = File(getExternalFilesDir(null), "BRAHM Drop").apply { mkdirs() }
+            val saveDir = chooseSaveDir()
             val name = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
 
             val pb = ProcessBuilder(
                 bin.absolutePath,
                 "--no-browser",
+                "--auto-accept",
                 "--port", PORT.toString(),
                 "--dir", saveDir.absolutePath,
                 "--name", name
@@ -86,6 +88,29 @@ class BrahmService : Service() {
             Log.e(TAG, "failed to start server: ${e.message}")
             running = false
         }
+    }
+
+    /**
+     * Pick where received files are saved. If "all files access" is granted,
+     * use the public Downloads/BRAHM Drop folder so files show up in the phone's
+     * file manager. Otherwise fall back to the app-private external folder.
+     */
+    private fun chooseSaveDir(): File {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
+            val dl = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                "BRAHM Drop"
+            )
+            if (dl.mkdirs() || dl.isDirectory) return dl
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            val dl = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                "BRAHM Drop"
+            )
+            if (dl.mkdirs() || dl.isDirectory) return dl
+        }
+        return File(getExternalFilesDir(null), "BRAHM Drop").apply { mkdirs() }
     }
 
     override fun onDestroy() {
