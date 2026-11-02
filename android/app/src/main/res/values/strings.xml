@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BRAHM Drop</string>
+    <string name="service_channel">BRAHM Drop running</string>
+    <string name="service_text">File transfer is active on your Wi‑Fi</string>
+</resources>

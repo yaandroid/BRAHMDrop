@@ -1,0 +1,24 @@
+# Build output
+/build/
+/dist/out/
+*.o
+*.obj
+
+# Go
+/tmp/
+
+# Android / Gradle
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+.gradle/
+*.iml
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keep: vendor/ (offline CI builds) and android jniLibs *.so are committed on purpose.

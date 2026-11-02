@@ -1,0 +1,131 @@
+name: BRAHM Drop build
+
+on:
+  push:
+    branches: [ "**" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Android APK: build the Go server for each ABI, then assemble the APK.
+  # ---------------------------------------------------------------------------
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Build Go server for Android ABIs
+        run: |
+          set -e
+          export GOFLAGS=-mod=vendor
+          OUT=android/app/src/main/jniLibs
+          LD="-s -w"
+
+          # arm64 — pure Go, no NDK needed (covers all modern phones)
+          CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
+            go build -ldflags "$LD" -o "$OUT/arm64-v8a/libbrahmdrop.so" ./cmd/brahmdrop
+          echo "built arm64-v8a"
+
+          # 32-bit arm + x86_64 — need the NDK clang (present on ubuntu runners)
+          NDK="${ANDROID_NDK_LATEST_HOME:-$ANDROID_NDK_HOME}"
+          TC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          if [ -d "$TC" ]; then
+            CGO_ENABLED=1 GOOS=android GOARCH=arm GOARM=7 \
+              CC="$TC/armv7a-linux-androideabi21-clang" \
+              go build -ldflags "$LD" -o "$OUT/armeabi-v7a/libbrahmdrop.so" ./cmd/brahmdrop && echo "built armeabi-v7a" || echo "skip v7a"
+            CGO_ENABLED=1 GOOS=android GOARCH=amd64 \
+              CC="$TC/x86_64-linux-android21-clang" \
+              go build -ldflags "$LD" -o "$OUT/x86_64/libbrahmdrop.so" ./cmd/brahmdrop && echo "built x86_64" || echo "skip x86_64"
+          else
+            echo "NDK not found; shipping arm64-v8a only"
+          fi
+          find "$OUT" -name "*.so" -exec ls -la {} \;
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Build unsigned release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon --stacktrace || echo "release (unsigned) build skipped"
+
+      - name: Rename APKs
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk out/BRAHM-Drop-v1.1.apk
+          cp android/app/build/outputs/apk/release/app-release-unsigned.apk out/BRAHM-Drop-v1.1-release-unsigned.apk 2>/dev/null || true
+          ls -la out
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BRAHM-Drop-APK
+          path: out/*.apk
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Desktop apps + native remote-desktop agents (Windows/macOS/Linux).
+  # macOS builds with cgo so the CoreGraphics capture/input backend compiles.
+  # ---------------------------------------------------------------------------
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            cgo: 0
+            out: brahmdrop-linux-amd64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            cgo: 0
+            out: brahmdrop-windows-amd64.exe
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            cgo: 1
+            out: brahmdrop-mac-apple
+          - os: macos-13
+            goos: darwin
+            goarch: amd64
+            cgo: 1
+            out: brahmdrop-mac-intel
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - name: Build
+        shell: bash
+        run: |
+          export GOFLAGS=-mod=vendor
+          CGO_ENABLED=${{ matrix.cgo }} GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -ldflags "-s -w" -o "out/${{ matrix.out }}" ./cmd/brahmdrop
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.out }}
+          path: out/${{ matrix.out }}
+          if-no-files-found: error

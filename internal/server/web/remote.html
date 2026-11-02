@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#2563EB"/>
+<title>BRAHM Drop — Remote</title>
+<link rel="icon" href="/favicon.ico"/>
+<style>
+  :root{--indigo:#4F46E5;--blue:#2563EB;--cyan:#06B6D4;--ink:#0f172a;--grad:linear-gradient(135deg,var(--indigo),var(--blue) 55%,var(--cyan))}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#0b1020;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--grad)}
+  .bar img{width:30px;height:30px;border-radius:8px}
+  .bar b{font-weight:800}
+  .bar .sp{flex:1}
+  .btn{border:0;border-radius:9px;padding:8px 13px;font-weight:700;font-size:13px;cursor:pointer;background:#fff;color:var(--blue)}
+  .btn.on{background:#16a34a;color:#fff}
+  .btn.off{background:#ef4444;color:#fff}
+  .wrap{display:flex;align-items:center;justify-content:center;height:calc(100% - 50px);padding:8px}
+  .screen{max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5);cursor:crosshair;touch-action:none;background:#000}
+  .connect{max-width:420px;margin:8vh auto;padding:22px;background:#111833;border:1px solid #243049;border-radius:16px}
+  .connect h2{margin:0 0 4px}
+  .connect p{color:#9fb0d0;font-size:13.5px;margin:4px 0 16px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12.5px;color:#9fb0d0;margin-bottom:5px}
+  .field input{width:100%;padding:11px;border-radius:9px;border:1px solid #2a3550;background:#0b1225;color:#fff;font-size:16px;letter-spacing:2px}
+  .bigbtn{width:100%;padding:13px;border:0;border-radius:11px;background:var(--grad);color:#fff;font-weight:800;font-size:16px;cursor:pointer}
+  .hint{font-size:12px;color:#7f8fb0;margin-top:10px;text-align:center}
+  .kbrow{position:fixed;bottom:0;left:0;right:0;display:flex;gap:6px;padding:8px;background:#0b1225;border-top:1px solid #243049}
+  .kbrow input{flex:1;padding:10px;border-radius:9px;border:1px solid #2a3550;background:#0b1225;color:#fff;font-size:15px}
+  .k{background:#1b2440;color:#cfe;border:1px solid #2a3550;border-radius:8px;padding:0 12px;font-size:13px;cursor:pointer}
+  .err{color:#fca5a5;font-size:13px;margin-top:8px;text-align:center}
+</style>
+</head>
+<body>
+<div class="bar">
+  <img src="/icon-192.png" alt=""/>
+  <b>BRAHM Drop</b> <span style="opacity:.85">Remote</span>
+  <span class="sp"></span>
+  <span id="dims" style="font-size:12px;opacity:.85"></span>
+  <button class="btn" id="kbBtn" style="display:none">⌨︎ Keyboard</button>
+  <button class="btn off" id="disconnectBtn" style="display:none">Disconnect</button>
+</div>
+
+<div id="connectView" class="connect">
+  <h2>Connect to a device</h2>
+  <p>Enter the host's address and the 6‑digit pairing code it shows. Both devices should be on the same Wi‑Fi.</p>
+  <div class="field">
+    <label>Host address</label>
+    <input id="host" type="text" placeholder="192.168.1.20:53330" autocomplete="off"/>
+  </div>
+  <div class="field">
+    <label>Pairing code</label>
+    <input id="code" type="text" inputmode="numeric" maxlength="6" placeholder="------"/>
+  </div>
+  <button class="bigbtn" id="go">Connect & View</button>
+  <div class="err" id="err"></div>
+  <div class="hint">On the host device, open BRAHM Drop → Remote tab → “Allow this device to be controlled”.</div>
+</div>
+
+<div id="viewView" class="wrap" style="display:none">
+  <img id="screen" class="screen" alt="remote screen"/>
+</div>
+
+<div class="kbrow" id="kbrow" style="display:none">
+  <button class="k" data-code="Escape">Esc</button>
+  <button class="k" data-code="Tab">Tab</button>
+  <input id="typebox" type="text" placeholder="type here… (Enter sends)" autocomplete="off"/>
+  <button class="k" data-code="Backspace">⌫</button>
+  <button class="k" data-code="Enter">↵</button>
+</div>
+
+<script src="/remote.js"></script>
+</body>
+</html>

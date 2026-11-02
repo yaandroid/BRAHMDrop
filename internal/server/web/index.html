@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#2563EB"/>
+<title>BRAHM Drop</title>
+<link rel="icon" href="/favicon.ico"/>
+<link rel="apple-touch-icon" href="/icon-180.png"/>
+<link rel="manifest" href="/manifest.webmanifest"/>
+<link rel="stylesheet" href="/style.css"/>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <img src="/icon-192.png" alt="" class="logo"/>
+    <div class="brandtext">
+      <div class="bt1">BRAHM <span>Drop</span></div>
+      <div class="bt2" id="meName">this device</div>
+    </div>
+  </div>
+  <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">connecting…</span></div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="send">Send</button>
+  <button class="tab" data-tab="receive">Receive</button>
+  <button class="tab" data-tab="remote">Remote</button>
+  <button class="tab" data-tab="history">History</button>
+  <button class="tab" data-tab="settings">Settings</button>
+</nav>
+
+<main>
+  <!-- SEND -->
+  <section class="panel active" id="panel-send">
+    <p class="hint">Pick a device on the same Wi-Fi, then choose files. Everything stays on your network.</p>
+    <div id="deviceList" class="devices"></div>
+    <div class="emptywrap" id="noDevices" hidden>
+      <div class="empty">
+        <div class="empty-ic">📡</div>
+        <div>No other devices yet.</div>
+        <div class="muted small">Open BRAHM Drop on your phone/PC on the same Wi-Fi — it appears here automatically.</div>
+        <button class="btn ghost" id="addByIpBtn">Add a device by IP</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECEIVE -->
+  <section class="panel" id="panel-receive">
+    <div class="card qrcard">
+      <h3>Receive on this device</h3>
+      <p class="muted">On the other phone/PC, open BRAHM Drop (or just a browser) and go to:</p>
+      <div class="urlbox" id="myUrl">…</div>
+      <img id="qrImg" class="qr" alt="QR to this device"/>
+      <p class="muted small">Scan the QR with a phone camera to open this page there — no install needed.</p>
+    </div>
+    <div class="card">
+      <h3>Saved to</h3>
+      <div class="urlbox" id="saveDir">…</div>
+      <p class="muted small">Received files land here.</p>
+    </div>
+  </section>
+
+  <!-- REMOTE -->
+  <section class="panel" id="panel-remote">
+    <div class="card">
+      <h3>Let another device control this one</h3>
+      <p class="muted small">Turn this on, then on the other phone/PC open BRAHM Drop → Remote → “Control another device”, enter this device’s address and the pairing code below.</p>
+      <label class="switch">
+        <input type="checkbox" id="remoteHost"/>
+        <span>Allow this device to be controlled</span>
+      </label>
+      <div id="remoteInfo" hidden>
+        <div class="muted small" style="margin-top:6px">This device’s address</div>
+        <div class="urlbox" id="remoteAddr">…</div>
+        <div class="muted small">Pairing code</div>
+        <div class="urlbox" id="remoteCode" style="font-size:22px;letter-spacing:4px;text-align:center">------</div>
+        <div class="muted small" id="remoteBackend"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Control another device</h3>
+      <p class="muted small">View and control another device’s screen from here.</p>
+      <a class="btn" href="/remote" target="_blank" rel="noopener">Open remote viewer</a>
+    </div>
+    <div class="card">
+      <p class="muted small">Remote desktop works device‑to‑device over your Wi‑Fi. Screen view works on all platforms; mouse/keyboard control uses each OS’s native input. On macOS, grant Screen Recording &amp; Accessibility permission the first time.</p>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="panel" id="panel-history">
+    <div class="rowbetween">
+      <h3 style="margin:0">Transfers</h3>
+      <button class="btn ghost small" id="clearHist">Clear</button>
+    </div>
+    <div id="historyList" class="history"></div>
+    <div class="muted small" id="noHistory" hidden>No transfers yet.</div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="panel" id="panel-settings">
+    <div class="card">
+      <label class="field">
+        <span>Device name</span>
+        <input type="text" id="setName" maxlength="40"/>
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="setAuto"/>
+        <span>Accept incoming files automatically</span>
+      </label>
+      <p class="muted small">When off, you’ll be asked to Accept each incoming transfer.</p>
+      <button class="btn" id="saveSettings">Save</button>
+    </div>
+    <div class="card about">
+      <img src="/icon-192.png" class="aboutlogo" alt=""/>
+      <div>
+        <div class="bt1" style="font-size:20px">BRAHM <span style="color:var(--blue)">Drop</span></div>
+        <div class="muted small" id="aboutVer">v1.1</div>
+        <div class="muted small" id="aboutCompany">Brahm InnerBrain Technologies Pvt. Ltd.</div>
+        <div class="muted small" id="aboutDev">Developed by Sandeep Kushwah</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- file picker (hidden) -->
+<input type="file" id="filePicker" multiple hidden/>
+
+<!-- send sheet -->
+<div class="sheet" id="sendSheet" hidden>
+  <div class="sheet-card">
+    <div class="rowbetween">
+      <h3 style="margin:0">Send to <span id="sendTarget"></span></h3>
+      <button class="x" id="sendClose">✕</button>
+    </div>
+    <div id="sendBody">
+      <button class="btn big" id="pickFilesBtn">Choose files</button>
+      <p class="muted small" style="text-align:center">or drop files here</p>
+    </div>
+    <div id="sendProgress" hidden>
+      <div class="progwrap"><div class="progbar" id="progBar"></div></div>
+      <div class="muted small" id="progText">Preparing…</div>
+    </div>
+    <div id="sendDone" hidden class="done">
+      <div class="done-ic">✓</div>
+      <div id="doneText">Sent!</div>
+      <button class="btn ghost" id="sendAnother">Send more</button>
+    </div>
+  </div>
+</div>
+
+<!-- incoming accept dialog -->
+<div class="sheet" id="askSheet" hidden>
+  <div class="sheet-card">
+    <h3 style="margin-top:0">Incoming files</h3>
+    <p id="askText" class="muted"></p>
+    <div class="rowgap">
+      <button class="btn ghost" id="askDecline">Decline</button>
+      <button class="btn" id="askAccept">Accept</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<footer class="foot">
+  <span id="footCompany">Brahm InnerBrain Technologies Pvt. Ltd.</span> · Developed by Sandeep Kushwah · v1.1
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>

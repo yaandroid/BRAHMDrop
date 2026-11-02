@@ -1,0 +1,36 @@
+<svg width="900" height="260" viewBox="0 0 900 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="20" y1="30" x2="230" y2="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4F46E5"/><stop offset="0.55" stop-color="#2563EB"/><stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="drop" x1="125" y1="70" x2="125" y2="215" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E6F7FF"/>
+    </linearGradient>
+    <linearGradient id="arrow" x1="125" y1="120" x2="125" y2="195" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563EB"/><stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="word" x1="300" y1="80" x2="860" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563EB"/><stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- icon -->
+  <g transform="translate(20,20) scale(0.43)">
+    <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+    <g stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="10" fill="none" stroke-linecap="round">
+      <path d="M150 196 A150 150 0 0 1 362 196"/><path d="M186 160 A200 200 0 0 1 326 160"/>
+    </g>
+    <circle cx="256" cy="150" r="13" fill="#FFFFFF" fill-opacity="0.9"/>
+    <path fill="url(#drop)" d="M256 150 C 300 214, 356 268, 356 328 a 100 100 0 1 1 -200 0 C 156 268, 212 214, 256 150 Z"/>
+    <g fill="url(#arrow)">
+      <path d="M232 322 l24 -34 24 34 h-16 v34 h-16 v-34 Z" transform="translate(-28,0)"/>
+      <path d="M232 294 h16 v34 h16 l-24 34 -24 -34 h16 Z" transform="translate(28,0)"/>
+    </g>
+  </g>
+
+  <!-- wordmark -->
+  <text x="268" y="150" font-family="Montserrat, 'Segoe UI', Arial, sans-serif" font-weight="800" font-size="92" fill="#1E293B" letter-spacing="1">BRAHM</text>
+  <text x="268" y="150" font-family="Montserrat, 'Segoe UI', Arial, sans-serif" font-weight="800" font-size="92" fill="url(#word)" letter-spacing="1" opacity="0"></text>
+  <text x="268" y="222" font-family="Montserrat, 'Segoe UI', Arial, sans-serif" font-weight="700" font-size="76" fill="url(#word)" letter-spacing="1">Drop</text>
+  <text x="520" y="222" font-family="'Segoe UI', Arial, sans-serif" font-weight="500" font-size="26" fill="#64748B" letter-spacing="3">FILE  TRANSFER</text>
+</svg>
