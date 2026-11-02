@@ -14,6 +14,8 @@ jobs:
   # ---------------------------------------------------------------------------
   android:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -86,6 +88,21 @@ jobs:
           name: BRAHM-Drop-APK
           path: out/*.apk
           if-no-files-found: error
+
+      - name: Publish APK to apk-build branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          mkdir -p /tmp/apkout
+          cp out/*.apk /tmp/apkout/
+          cd /tmp/apkout
+          git init -q
+          git checkout -q -b apk-build
+          git add .
+          git -c user.email=actions@github.com -c user.name=github-actions commit -qm "APK build ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" apk-build
+          echo "Pushed APK(s) to branch apk-build"
 
   # ---------------------------------------------------------------------------
   # Desktop apps + native remote-desktop agents (Windows/macOS/Linux).
