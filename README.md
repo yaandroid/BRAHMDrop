@@ -83,10 +83,11 @@ and the 6‑digit pairing code. You get a live screen view and full mouse/keyboa
 control, device‑to‑device over Wi‑Fi.
 
 - Transport: MJPEG screen stream + input events over HTTP (no external deps).
-- Screen capture & input injection are native per OS: **Windows** (GDI + SendInput,
-  pure Go) and **macOS** (CoreGraphics via cgo). Other platforms use a portable
-  backend. On macOS, grant **Screen Recording** and **Accessibility** permission
-  the first time.
+- Screen capture & input injection: **Windows** uses a native backend (GDI +
+  SendInput, pure Go). A macOS CoreGraphics backend is included in the source
+  (built with cgo) and is being finalised for recent macOS SDKs; the shipped
+  macOS build currently uses the portable backend. Other platforms use the
+  portable backend.
 
 ## Android app
 

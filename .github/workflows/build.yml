@@ -55,8 +55,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Prepare Android SDK (preinstalled on the runner)
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          echo "Using SDK at: $SDK"
+          echo "sdk.dir=$SDK" > android/local.properties
+          # Accept licenses non-interactively (ignore if already accepted)
+          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
 
       - name: Build debug APK
         working-directory: android
@@ -104,12 +109,12 @@ jobs:
           - os: macos-latest
             goos: darwin
             goarch: arm64
-            cgo: 1
+            cgo: 0
             out: brahmdrop-mac-apple
           - os: macos-13
             goos: darwin
             goarch: amd64
-            cgo: 1
+            cgo: 0
             out: brahmdrop-mac-intel
     runs-on: ${{ matrix.os }}
     steps:
