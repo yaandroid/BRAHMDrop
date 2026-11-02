@@ -21,4 +21,8 @@ android/captures/
 .DS_Store
 Thumbs.db
 
+# Local deliverable artifacts (reproducible via CI / go build; not source)
+/deliver/
+*.apk
+
 # Keep: vendor/ (offline CI builds) and android jniLibs *.so are committed on purpose.
