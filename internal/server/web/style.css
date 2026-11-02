@@ -5,6 +5,9 @@
   --grad:linear-gradient(135deg,var(--indigo),var(--blue) 55%,var(--cyan));
 }
 *{box-sizing:border-box}
+/* The HTML `hidden` attribute must always win, even over display:flex rules
+   below (otherwise sheets/dialogs never close). */
+[hidden]{display:none !important}
 html,body{margin:0;padding:0}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;

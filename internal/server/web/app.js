@@ -129,7 +129,10 @@
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", url);
-    if (setFrom && ME) xhr.setRequestHeader("X-BRAHM-From", ME.device.name);
+    if (setFrom && ME) {
+      xhr.setRequestHeader("X-BRAHM-From", ME.device.name);
+      xhr.setRequestHeader("X-BRAHM-Self", "1"); // sending to this same device — never prompt
+    }
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable) {
         const pct = Math.round(ev.loaded / ev.total * 100);

@@ -311,8 +311,10 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		from = "Unknown device"
 	}
 
-	// Approval gate when auto-accept is off.
-	if !s.cfg.AutoAccept {
+	// Approval gate when auto-accept is off — but never for a send to this same
+	// device (self-send is local and should be silent).
+	selfSend := r.Header.Get("X-BRAHM-Self") == "1"
+	if !s.cfg.AutoAccept && !selfSend {
 		id := randID()
 		ch := make(chan bool, 1)
 		s.mu.Lock()
