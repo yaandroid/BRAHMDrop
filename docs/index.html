@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>BRAHM Drop — Demo</title>
+<style>
+  :root{
+    --indigo:#4F46E5; --blue:#2563EB; --cyan:#06B6D4;
+    --ink:#0f172a; --muted:#64748b; --line:#e8edf6; --card:#fff;
+    --yellow:#facc15; --grad:linear-gradient(135deg,var(--indigo),var(--blue) 55%,var(--cyan));
+    --bg:#0b1020;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#070b17;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;color:#fff}
+  body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:14px;min-height:100%}
+
+  /* ---------- 9:16 recording stage ---------- */
+  .stage{
+    position:relative;width:min(92vw,405px);aspect-ratio:9/16;max-height:88vh;
+    border-radius:26px;overflow:hidden;background:
+      radial-gradient(1200px 500px at 50% -10%, rgba(37,99,235,.55), transparent 60%),
+      radial-gradient(900px 500px at 50% 120%, rgba(6,182,212,.45), transparent 60%),
+      #0a1226;
+    box-shadow:0 30px 80px rgba(0,0,0,.55);
+  }
+  .grain:before{content:"";position:absolute;inset:0;background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+    background-size:34px 34px;pointer-events:none}
+
+  /* top brand badge */
+  .badge{position:absolute;top:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,.1);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.18);
+    padding:7px 13px 7px 8px;border-radius:999px;z-index:20}
+  .badge img{width:26px;height:26px;border-radius:8px}
+  .badge b{font-size:14px;font-weight:800;letter-spacing:.3px}
+  .badge b span{opacity:.9;font-weight:700}
+
+  /* headline for title scenes */
+  .big{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:30px;gap:12px;opacity:0;transition:opacity .5s;z-index:12;pointer-events:none}
+  .big.on{opacity:1}
+  .big .logo{width:92px;height:92px;border-radius:24px;box-shadow:0 14px 40px rgba(6,182,212,.5);animation:pop .7s both}
+  .big h1{font-size:40px;font-weight:900;line-height:1.02;letter-spacing:.4px}
+  .big h1 em{font-style:normal;background:linear-gradient(90deg,#8bd6ff,#67e8f9);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .big p{font-size:17px;color:#b9c6e6;max-width:16em;line-height:1.35}
+
+  /* phone mockup */
+  .phonewrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .45s;z-index:10}
+  .phonewrap.on{opacity:1}
+  .phone{width:62%;aspect-ratio:9/19;background:#0b1225;border-radius:30px;border:7px solid #10182e;
+    box-shadow:0 20px 50px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.04);overflow:hidden;position:relative}
+  .notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:34%;height:16px;background:#10182e;border-radius:0 0 12px 12px;z-index:5}
+  .screen{position:absolute;inset:0;background:#f5f7fb;color:var(--ink);display:flex;flex-direction:column}
+  .sbar{background:var(--grad);color:#fff;padding:16px 12px 12px;display:flex;align-items:center;gap:8px}
+  .sbar img{width:26px;height:26px;border-radius:8px}
+  .sbar .t1{font-weight:800;font-size:14px}
+  .sbar .t2{font-size:9px;opacity:.85}
+  .tabs{display:flex;background:#fff;border-bottom:1px solid var(--line)}
+  .tabs div{flex:1;text-align:center;font-size:9.5px;font-weight:700;color:var(--muted);padding:8px 0}
+  .tabs div.act{color:var(--blue);box-shadow:inset 0 -2px 0 var(--blue)}
+  .body{flex:1;padding:10px;overflow:hidden;position:relative}
+
+  /* device rows */
+  .dev{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:12px;
+    padding:9px;margin-bottom:8px;transform:translateY(8px);opacity:0;animation:rise .4s forwards}
+  .dev:nth-child(2){animation-delay:.08s}.dev:nth-child(3){animation-delay:.16s}
+  .dev .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:17px;background:#eef2ff;flex:none}
+  .dev .nm{font-weight:700;font-size:11.5px}
+  .dev .sb{font-size:8.5px;color:var(--muted)}
+  .dev .go{margin-left:auto;color:var(--blue);font-weight:800;font-size:10px}
+  .dev.sel{border-color:var(--blue);box-shadow:0 6px 18px rgba(37,99,235,.18)}
+
+  /* file picker sheet */
+  .sheet{position:absolute;left:8px;right:8px;bottom:8px;background:#fff;border-radius:16px;padding:12px;
+    box-shadow:0 -10px 30px rgba(0,0,0,.18);transform:translateY(120%);transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+  .sheet.up{transform:translateY(0)}
+  .sheet h4{font-size:11px;margin-bottom:9px;color:var(--ink)}
+  .files{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .file{background:#f3f6fc;border:1px solid var(--line);border-radius:11px;padding:9px 4px;text-align:center;transform:scale(.6);opacity:0}
+  .file.in{animation:fpop .35s forwards}
+  .file .fi{font-size:19px}
+  .file .fn{font-size:8px;color:var(--muted);margin-top:3px;font-weight:600}
+
+  /* progress */
+  .prog{position:absolute;left:8px;right:8px;bottom:8px;background:#fff;border-radius:16px;padding:14px 13px;box-shadow:0 -10px 30px rgba(0,0,0,.18);transform:translateY(120%);transition:transform .4s}
+  .prog.up{transform:translateY(0)}
+  .prog .row{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:7px}
+  .prog .bar{height:9px;background:#eef2ff;border-radius:999px;overflow:hidden}
+  .prog .fill{height:100%;width:0;background:var(--grad);border-radius:999px}
+  .prog .done{display:flex;align-items:center;gap:7px;margin-top:9px;color:#16a34a;font-weight:800;font-size:12px;opacity:0}
+  .prog.finished .done{opacity:1}
+  .prog .tick{width:22px;height:22px;border-radius:50%;background:#ecfdf5;display:grid;place-items:center}
+
+  /* "what you can send" grid scene */
+  .grid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:26px;opacity:0;transition:opacity .4s;z-index:11;pointer-events:none}
+  .grid.on{opacity:1}
+  .grid h2{font-size:23px;font-weight:900;text-align:center}
+  .grid h2 em{font-style:normal;color:#67e8f9}
+  .gg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;max-width:300px}
+  .gi{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:14px 6px;text-align:center;transform:translateY(12px) scale(.8);opacity:0}
+  .grid.on .gi{animation:gpop .5s forwards}
+  .grid.on .gi:nth-child(2){animation-delay:.07s}.grid.on .gi:nth-child(3){animation-delay:.14s}
+  .grid.on .gi:nth-child(4){animation-delay:.21s}.grid.on .gi:nth-child(5){animation-delay:.28s}
+  .grid.on .gi:nth-child(6){animation-delay:.35s}.grid.on .gi:nth-child(7){animation-delay:.42s}
+  .grid.on .gi:nth-child(8){animation-delay:.49s}.grid.on .gi:nth-child(9){animation-delay:.56s}
+  .gi .e{font-size:26px}.gi .l{font-size:10px;margin-top:5px;color:#cdd8f2;font-weight:600}
+
+  /* device network scene */
+  .net{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;opacity:0;transition:opacity .4s;z-index:11;pointer-events:none}
+  .net.on{opacity:1}
+  .net h2{font-size:22px;font-weight:900;text-align:center;line-height:1.1}
+  .ring{position:relative;width:250px;height:250px}
+  .node{position:absolute;width:76px;height:76px;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);font-size:26px}
+  .node small{font-size:8.5px;color:#cdd8f2;font-weight:700}
+  .node.c{left:50%;top:50%;transform:translate(-50%,-50%);background:var(--grad);border:0;box-shadow:0 10px 30px rgba(6,182,212,.5)}
+  .node.n1{left:50%;top:0;transform:translateX(-50%)}
+  .node.n2{right:0;bottom:16px}
+  .node.n3{left:0;bottom:16px}
+  .pulse{position:absolute;left:50%;top:50%;width:14px;height:14px;border-radius:50%;background:var(--cyan);transform:translate(-50%,-50%);box-shadow:0 0 0 0 rgba(6,182,212,.6);animation:pulse 1.6s infinite}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .chip{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:6px 12px;font-size:11px;font-weight:700}
+  .chip b{color:#67e8f9}
+
+  /* end card */
+  .end{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:30px;text-align:center;opacity:0;transition:opacity .5s;z-index:13;pointer-events:none}
+  .end.on{opacity:1}
+  .end .logo{width:84px;height:84px;border-radius:22px;animation:pop .6s both;box-shadow:0 14px 40px rgba(6,182,212,.5)}
+  .end h1{font-size:34px;font-weight:900}
+  .end h1 em{font-style:normal;color:#67e8f9}
+  .end .co{font-size:12px;color:#aab8da;line-height:1.5}
+  .follow{margin-top:6px;background:linear-gradient(90deg,#db2777,#f472b6);padding:9px 20px;border-radius:999px;font-weight:900;font-size:14px;letter-spacing:.5px;display:flex;align-items:center;gap:8px;animation:bob 1.4s ease-in-out infinite}
+
+  /* caption band */
+  .cap{position:absolute;left:0;right:0;bottom:20px;display:flex;justify-content:center;z-index:18;pointer-events:none}
+  .cap span{background:rgba(5,9,22,.82);border:1px solid rgba(255,255,255,.12);padding:9px 15px;border-radius:12px;font-size:16px;font-weight:800;letter-spacing:.2px;
+    opacity:0;transform:translateY(8px);transition:.3s;max-width:88%;text-align:center}
+  .cap.show span{opacity:1;transform:translateY(0)}
+  .cap b{color:var(--yellow)}
+
+  /* progress ticker line */
+  .tl{position:absolute;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--cyan),var(--yellow));width:0;z-index:30}
+
+  /* animated hand pointer */
+  .hand{position:absolute;width:40px;height:40px;z-index:25;left:60%;top:60%;opacity:0;transition:left .6s cubic-bezier(.3,.7,.3,1),top .6s cubic-bezier(.3,.7,.3,1),opacity .3s;filter:drop-shadow(0 4px 6px rgba(0,0,0,.4))}
+  .hand.on{opacity:1}
+  .hand.tap{animation:tap .4s}
+
+  /* flash */
+  .flash{position:absolute;inset:0;background:#fff;opacity:0;z-index:28;pointer-events:none}
+  .flash.go{animation:flash .45s}
+
+  @keyframes pop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+  @keyframes rise{to{transform:translateY(0);opacity:1}}
+  @keyframes fpop{to{transform:scale(1);opacity:1}}
+  @keyframes gpop{to{transform:translateY(0) scale(1);opacity:1}}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(6,182,212,.6)}100%{box-shadow:0 0 0 46px rgba(6,182,212,0)}}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  @keyframes tap{0%{transform:scale(1)}40%{transform:scale(.78)}100%{transform:scale(1)}}
+  @keyframes flash{0%{opacity:0}30%{opacity:.85}100%{opacity:0}}
+
+  /* controls (OUTSIDE the stage — won't be in your screen recording) */
+  .ctrls{display:flex;gap:10px;align-items:center}
+  .ctrls button{background:#141c33;color:#fff;border:1px solid #273255;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer}
+  .ctrls button.primary{background:var(--grad);border:0}
+  .hint{color:#7f8fb0;font-size:12px;text-align:center;max-width:405px;line-height:1.4}
+</style>
+</head>
+<body>
+
+<div class="stage grain" id="stage">
+  <div class="tl" id="tl"></div>
+  <div class="badge"><img id="b1" alt=""/><b>BRAHM <span>Drop</span></b></div>
+
+  <!-- SCENE 1: intro -->
+  <div class="big" id="s-intro">
+    <img class="logo" id="b2" alt=""/>
+    <h1>BRAHM <em>Drop</em></h1>
+    <p>Photo, video, file — kuch bhi bhejo, kisi bhi device pe.</p>
+  </div>
+
+  <!-- PHONE (scenes 2-4) -->
+  <div class="phonewrap" id="s-phone">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="screen">
+        <div class="sbar"><img id="b3" alt=""/><div><div class="t1">BRAHM Drop</div><div class="t2">mera phone · online</div></div></div>
+        <div class="tabs"><div class="act">Send</div><div>Receive</div><div>Remote</div><div>History</div></div>
+        <div class="body" id="pbody">
+          <div class="dev" id="d1"><div class="ic">🖥️</div><div><div class="nm">Sandeep ka Laptop</div><div class="sb">192.168.1.20 · tap to send</div></div><div class="go">Send ›</div></div>
+          <div class="dev" id="d2"><div class="ic">💻</div><div><div class="nm">MacBook</div><div class="sb">192.168.1.31 · tap to send</div></div><div class="go">Send ›</div></div>
+          <div class="dev" id="d3"><div class="ic">📱</div><div><div class="nm">Papa ka Phone</div><div class="sb">192.168.1.42 · tap to send</div></div><div class="go">Send ›</div></div>
+
+          <!-- file picker -->
+          <div class="sheet" id="sheet">
+            <h4>Kya bhejna hai?</h4>
+            <div class="files" id="files">
+              <div class="file"><div class="fi">🖼️</div><div class="fn">Photos</div></div>
+              <div class="file"><div class="fi">🎬</div><div class="fn">Videos</div></div>
+              <div class="file"><div class="fi">📄</div><div class="fn">PDF / Docs</div></div>
+              <div class="file"><div class="fi">📁</div><div class="fn">Folder</div></div>
+              <div class="file"><div class="fi">📦</div><div class="fn">APK / Apps</div></div>
+              <div class="file"><div class="fi">🎵</div><div class="fn">Music</div></div>
+            </div>
+          </div>
+
+          <!-- progress -->
+          <div class="prog" id="prog">
+            <div class="row"><span id="pL">4 files bhej rahe hain…</span><span id="pR">24 MB/s</span></div>
+            <div class="bar"><div class="fill" id="fill"></div></div>
+            <div class="done"><div class="tick">✓</div><div>Ho gaya — Laptop pe pahunch gaya!</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCENE 5: what you can send -->
+  <div class="grid" id="s-grid">
+    <h2>Kuch bhi <em>send</em> karo</h2>
+    <div class="gg">
+      <div class="gi"><div class="e">🖼️</div><div class="l">Photos</div></div>
+      <div class="gi"><div class="e">🎬</div><div class="l">Videos</div></div>
+      <div class="gi"><div class="e">📄</div><div class="l">Documents</div></div>
+      <div class="gi"><div class="e">📁</div><div class="l">Folders</div></div>
+      <div class="gi"><div class="e">📦</div><div class="l">APK / Apps</div></div>
+      <div class="gi"><div class="e">🎵</div><div class="l">Music</div></div>
+      <div class="gi"><div class="e">🗜️</div><div class="l">ZIP / Big files</div></div>
+      <div class="gi"><div class="e">🖥️</div><div class="l">Any file</div></div>
+      <div class="gi"><div class="e">♾️</div><div class="l">No size limit</div></div>
+    </div>
+  </div>
+
+  <!-- SCENE 6: devices network -->
+  <div class="net" id="s-net">
+    <h2>Phone ⇄ Laptop ⇄ PC<br/>ek doosre ko <span style="color:#67e8f9">bhejo</span></h2>
+    <div class="ring">
+      <div class="pulse"></div>
+      <div class="node c">💧<small>BRAHM</small></div>
+      <div class="node n1">📱<small>Phone</small></div>
+      <div class="node n2">🖥️<small>Windows</small></div>
+      <div class="node n3">💻<small>Mac</small></div>
+    </div>
+    <div class="chips">
+      <div class="chip">📶 same <b>Wi-Fi</b></div>
+      <div class="chip">🚫 no <b>internet</b></div>
+      <div class="chip">🚫 no <b>login</b></div>
+      <div class="chip">🚫 no <b>ads</b></div>
+    </div>
+  </div>
+
+  <!-- SCENE 7: end -->
+  <div class="end" id="s-end">
+    <img class="logo" id="b4" alt=""/>
+    <h1>BRAHM <em>Drop</em></h1>
+    <div class="co">Brahm InnerBrain Technologies Pvt. Ltd.<br/>Developed by Sandeep Kushwah</div>
+    <div class="follow">▶ FOLLOW &nbsp;·&nbsp; BRAHM Drop</div>
+  </div>
+
+  <!-- hand pointer -->
+  <svg class="hand" id="hand" viewBox="0 0 24 24" fill="none"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11m0-1.5a1.5 1.5 0 0 1 3 0V12m0-1a1.5 1.5 0 0 1 3 0v4.5c0 2.5-1.6 4.5-4.5 4.5h-1.2c-1.5 0-2.3-.4-3.2-1.4l-3-3.3a1.6 1.6 0 0 1 2.3-2.2L11 14" fill="#fde047" stroke="#1e293b" stroke-width="1.1" stroke-linejoin="round"/></svg>
+
+  <div class="flash" id="flash"></div>
+  <div class="cap" id="cap"><span id="capt"></span></div>
+</div>
+
+<div class="ctrls">
+  <button class="primary" id="play">▶ Replay demo</button>
+</div>
+<div class="hint">Yeh 9:16 demo hai. Screen-record karke reel bana sakte ho (controls recording me nahi aayenge). Replay se dubara chalega.</div>
+
+<script>
+const LOGO = "data:image/svg+xml;utf8," + encodeURIComponent(`
+<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>
+<defs>
+<linearGradient id='bg' x1='0' y1='0' x2='512' y2='512' gradientUnits='userSpaceOnUse'><stop offset='0' stop-color='#4F46E5'/><stop offset='.55' stop-color='#2563EB'/><stop offset='1' stop-color='#06B6D4'/></linearGradient>
+<linearGradient id='dp' x1='256' y1='120' x2='256' y2='430' gradientUnits='userSpaceOnUse'><stop offset='0' stop-color='#fff'/><stop offset='1' stop-color='#E6F7FF'/></linearGradient>
+<linearGradient id='ar' x1='256' y1='180' x2='256' y2='380' gradientUnits='userSpaceOnUse'><stop offset='0' stop-color='#2563EB'/><stop offset='1' stop-color='#06B6D4'/></linearGradient>
+</defs>
+<rect width='512' height='512' rx='116' fill='url(#bg)'/>
+<g stroke='#fff' stroke-opacity='.22' stroke-width='10' fill='none' stroke-linecap='round'><path d='M150 196 A150 150 0 0 1 362 196'/><path d='M186 160 A200 200 0 0 1 326 160'/></g>
+<circle cx='256' cy='150' r='13' fill='#fff' fill-opacity='.9'/>
+<path fill='url(#dp)' d='M256 150 C 300 214, 356 268, 356 328 a 100 100 0 1 1 -200 0 C 156 268, 212 214, 256 150 Z'/>
+<g fill='url(#ar)'><path d='M232 322 l24 -34 24 34 h-16 v34 h-16 v-34 Z' transform='translate(-28,0)'/><path d='M232 294 h16 v34 h16 l-24 34 -24 -34 h16 Z' transform='translate(28,0)'/></g>
+</svg>`);
+["b1","b2","b3","b4"].forEach(id=>document.getElementById(id).src=LOGO);
+
+const $=id=>document.getElementById(id);
+const stage=$("stage"), cap=$("cap"), capt=$("capt"), hand=$("hand"), tl=$("tl"), flash=$("flash");
+const scenes={intro:$("s-intro"),phone:$("s-phone"),grid:$("s-grid"),net:$("s-net"),end:$("s-end")};
+let timers=[], running=false, paused=false, startT=0, elapsed=0, TOTAL=38000;
+
+function clearTimers(){timers.forEach(t=>clearTimeout(t));timers=[]}
+function at(ms,fn){timers.push(setTimeout(fn,ms))}
+function show(name){for(const k in scenes)scenes[k].classList.toggle("on",k===name)}
+function caption(html){capt.innerHTML=html;cap.classList.add("show")}
+function hideCap(){cap.classList.remove("show")}
+function moveHand(xPct,yPct){hand.classList.add("on");hand.style.left=xPct+"%";hand.style.top=yPct+"%"}
+function tap(){hand.classList.remove("tap");void hand.offsetWidth;hand.classList.add("tap")}
+function doFlash(){flash.classList.remove("go");void flash.offsetWidth;flash.classList.add("go")}
+
+function resetUI(){
+  ["sheet"].forEach(i=>$(i).classList.remove("up"));
+  $("prog").classList.remove("up","finished");
+  $("fill").style.width="0%";
+  $("d1").classList.remove("sel");
+  document.querySelectorAll(".file").forEach(f=>f.classList.remove("in"));
+  hand.classList.remove("on");hideCap();
+}
+
+function run(){
+  clearTimers(); resetUI(); running=true; paused=false;
+  startT=performance.now(); elapsed=0; tickTL();
+
+  // S1 intro 0-4s
+  show("intro");
+  at(400,()=>caption("Send <b>anything</b>, any device"));
+  at(3600,()=>hideCap());
+
+  // S2 phone + pick device 4-9s
+  at(4000,()=>{show("phone");caption("Device <b>choose</b> karo")});
+  at(5200,()=>moveHand(70,30));
+  at(6200,()=>{tap();$("d1").classList.add("sel");doFlash()});
+  at(7000,()=>caption("Laptop <b>select</b> ✓"));
+  at(8600,()=>hideCap());
+
+  // S3 pick files 9-15s
+  at(9000,()=>{$("sheet").classList.add("up");moveHand(50,78);caption("Koi bhi <b>file</b> chuno")});
+  const order=[0,1,2,3,4,5];
+  order.forEach((n,i)=>at(9600+i*260,()=>document.querySelectorAll(".file")[n].classList.add("in")));
+  at(11600,()=>{moveHand(30,62);});
+  at(12200,()=>tap());
+  at(13000,()=>caption("Photos, video, PDF, folder, <b>APK</b>…"));
+  at(14600,()=>hideCap());
+
+  // S4 transfer 15-21s
+  at(15000,()=>{$("sheet").classList.remove("up");$("prog").classList.add("up");hand.classList.remove("on");caption("<b>Bhej</b> rahe hain…")});
+  at(15400,()=>{$("fill").style.transition="width 3.6s cubic-bezier(.3,.7,.3,1)";$("fill").style.width="100%"});
+  at(19200,()=>{$("prog").classList.add("finished");caption("✓ <b>Ho gaya!</b>");doFlash()});
+  at(21000,()=>hideCap());
+
+  // S5 what you can send 21-27s
+  at(21400,()=>{show("grid");caption("Ye sab <b>bhej</b> sakte ho")});
+  at(26400,()=>hideCap());
+
+  // S6 network 27-33s
+  at(27000,()=>{show("net");caption("<b>Wi-Fi</b> pe — no internet, no ads")});
+  at(32400,()=>hideCap());
+
+  // S7 end 33-38s
+  at(33000,()=>{show("end");caption("<b>Download</b> karo · abhi")});
+  at(37600,()=>{hideCap()});
+  at(TOTAL,()=>{running=false});
+}
+
+function tickTL(){
+  if(!running) return;
+  if(!paused){elapsed=performance.now()-startT;tl.style.width=Math.min(100,elapsed/TOTAL*100)+"%";}
+  if(elapsed<TOTAL) requestAnimationFrame(tickTL);
+}
+
+$("play").onclick=run;
+
+// autostart
+run();
+</script>
+</body>
+</html>

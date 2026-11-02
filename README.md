@@ -75,6 +75,20 @@ assets/               logo (SVG) + icon set
 dist/                 packaging (installer, per-OS READMEs)
 ```
 
+## Demo / UGC video (watch in a browser)
+
+An animated 9:16 walkthrough of the app — what the UI looks like and what you
+can send — lives at [`docs/index.html`](docs/index.html). It auto‑plays and loops,
+so you can **screen‑record it as a UGC / reel video**, or just show it to anyone
+to explain BRAHM Drop.
+
+- **Open it live (no download):**
+  https://htmlpreview.github.io/?https://raw.githubusercontent.com/yaandroid/BRAHMDrop/phase3-remote-and-apk/docs/index.html
+- Or enable **GitHub Pages** (Settings → Pages → Branch: `phase3-remote-and-apk`, folder `/docs`)
+  and it will be served at `https://yaandroid.github.io/BRAHMDrop/`.
+- To record: open the page, frame the phone/stage (the Replay button sits outside
+  the 9:16 area, so it won’t appear in the recording), and screen‑record.
+
 ## Remote desktop (AnyDesk‑style, Phase 3)
 
 Turn on **Remote → “Allow this device to be controlled”** on the host; on the
