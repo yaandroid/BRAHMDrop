@@ -4,6 +4,14 @@
 
 Brahm InnerBrain Technologies Pvt. Ltd. · Developed by Sandeep Kushwah · v1.1
 
+<p align="center">
+  <img src="docs/demo.gif" alt="BRAHM Drop demo" width="300"/>
+</p>
+
+> Animation not playing? GitHub occasionally pauses large GIFs — open
+> [`docs/demo.gif`](docs/demo.gif), or the interactive version at
+> [`docs/index.html`](docs/index.html).
+
 ---
 
 ## What it does

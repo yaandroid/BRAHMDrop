@@ -8,12 +8,22 @@
   const icon = (k) => KIND_ICON[k] || "🌐";
 
   // ---- tabs ----
-  $$(".tab").forEach(t => t.addEventListener("click", () => {
+  function activateTab(name) {
+    const tab = document.querySelector('.tab[data-tab="' + name + '"]');
+    if (!tab) return;
     $$(".tab").forEach(x => x.classList.remove("active"));
     $$(".panel").forEach(x => x.classList.remove("active"));
-    t.classList.add("active");
-    $("#panel-" + t.dataset.tab).classList.add("active");
-  }));
+    tab.classList.add("active");
+    const panel = $("#panel-" + name);
+    if (panel) panel.classList.add("active");
+    try { localStorage.setItem("bd_tab", name); } catch (e) {}
+  }
+  $$(".tab").forEach(t => t.addEventListener("click", () => activateTab(t.dataset.tab)));
+  // Restore the last tab so an occasional reload never jumps back to Send.
+  try {
+    const saved = localStorage.getItem("bd_tab");
+    if (saved) activateTab(saved);
+  } catch (e) {}
 
   // ---- toast ----
   let toastT;

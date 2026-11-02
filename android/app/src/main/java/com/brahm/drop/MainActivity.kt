@@ -32,6 +32,7 @@ class MainActivity : AppCompatActivity() {
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private var hadAllFiles = false
     private var serverStarted = false
+    private var loadRetries = 0
 
     // --- file picker for the WebView "Choose files" button ---
     private val filePicker = registerForActivityResult(
@@ -86,11 +87,28 @@ class MainActivity : AppCompatActivity() {
         }
 
         web.webViewClient = object : WebViewClient() {
+            // Only retry when the MAIN page fails to load (e.g. the local server
+            // is still booting). NEVER reload for a sub-resource hiccup such as
+            // the live-events stream — that caused the page to blink and reset
+            // to the Send tab.
             override fun onReceivedError(
                 view: WebView?, request: WebResourceRequest?, error: WebResourceError?
             ) {
-                Handler(Looper.getMainLooper()).postDelayed({ loadApp() }, 700)
+                if (request?.isForMainFrame == true && loadRetries < 12) {
+                    loadRetries++
+                    Handler(Looper.getMainLooper()).postDelayed({ loadApp() }, 600)
+                }
             }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                // Loaded successfully — stop retrying.
+                if (url != null && url.startsWith("http://127.0.0.1")) loadRetries = 0
+            }
+
+            // Keep all navigation inside the WebView (never spawn a browser).
+            override fun shouldOverrideUrlLoading(
+                view: WebView?, request: WebResourceRequest?
+            ): Boolean = false
         }
 
         web.webChromeClient = object : WebChromeClient() {
