@@ -29,6 +29,7 @@ type Config struct {
 	HTTPPort   int    `json:"http_port"`
 	AutoAccept bool   `json:"auto_accept"` // accept incoming without a prompt
 	RelayAddr  string `json:"relay_addr"`  // VPS relay host:port (internet access)
+	ClipSync   bool   `json:"clip_sync"`   // desktop clipboard auto-sync
 
 	mu   sync.Mutex `json:"-"`
 	path string     `json:"-"`

@@ -26,6 +26,7 @@
   <button class="tab active" data-tab="send">Send</button>
   <button class="tab" data-tab="receive">Receive</button>
   <button class="tab" data-tab="remote">Remote</button>
+  <button class="tab" data-tab="chat">Chat</button>
   <button class="tab" data-tab="history">History</button>
   <button class="tab" data-tab="settings">Settings</button>
 </nav>
@@ -118,6 +119,18 @@
     </div>
   </section>
 
+  <!-- CHAT -->
+  <section class="panel" id="panel-chat">
+    <p class="hint">Text aur clipboard dusre device ko bhejo (same Wi‑Fi ya internet relay). Tap a message to copy it.</p>
+    <div id="chatList" class="chat"></div>
+    <div class="chatbar">
+      <button class="btn ghost small" id="sendClip" title="Send clipboard" style="width:auto">📋</button>
+      <input type="text" id="chatInput" placeholder="Type a message…" autocomplete="off"/>
+      <button class="btn small" id="sendMsg" style="width:auto">Send</button>
+    </div>
+    <div class="muted small" id="noChat" style="margin-top:8px" hidden>No messages yet. Send text or clipboard to your other devices.</div>
+  </section>
+
   <!-- HISTORY -->
   <section class="panel" id="panel-history">
     <div class="rowbetween">
@@ -140,6 +153,11 @@
         <span>Accept incoming files automatically</span>
       </label>
       <p class="muted small">When off, you’ll be asked to Accept each incoming transfer.</p>
+      <label class="switch" id="clipRow" hidden>
+        <input type="checkbox" id="setClip"/>
+        <span>Clipboard auto‑sync (PC ⇄ PC)</span>
+      </label>
+      <p class="muted small" id="clipHint" hidden>Copy on one PC, it appears on the other automatically. (Desktop only.)</p>
       <button class="btn" id="saveSettings">Save</button>
     </div>
     <div class="card about">

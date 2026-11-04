@@ -2,6 +2,7 @@
 package server
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"brahmdrop/internal/clip"
 	"brahmdrop/internal/config"
 	"brahmdrop/internal/discovery"
 	"brahmdrop/internal/netutil"
@@ -50,6 +52,21 @@ type Server struct {
 	relayCode string           // this device's connection code
 	tunMu     sync.Mutex
 	tunnels   map[string]*relay.ViewerTunnel // code -> open viewer tunnel
+
+	msgMu    sync.Mutex
+	messages []Message // chat / text messages
+	clipSync bool      // desktop clipboard auto-sync on
+	clipLast string    // last clipboard value we sent or applied (loop guard)
+	clipStop chan struct{}
+}
+
+// Message is a chat or clipboard text item.
+type Message struct {
+	From string `json:"from"`
+	Text string `json:"text"`
+	Kind string `json:"kind"` // "chat" or "clip"
+	Mine bool   `json:"mine"`
+	Time int64  `json:"time"`
 }
 
 // New creates a Server.
@@ -92,6 +109,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/settings", s.handleSettings)
 	mux.HandleFunc("/api/qr", s.handleQR)
 	mux.HandleFunc("/api/events", s.handleEvents)
+
+	// Chat / text + clipboard
+	mux.HandleFunc("/api/inbox", s.handleInbox)       // receive a text/clip
+	mux.HandleFunc("/api/message", s.handleSendMsg)   // send text to a peer
+	mux.HandleFunc("/api/messages", s.handleMessages) // list chat
+	mux.HandleFunc("/api/clipboard/send", s.handleClipSend)
 
 	// Internet relay (connect from anywhere)
 	mux.HandleFunc("/api/relay/status", s.handleRelayStatus)
@@ -175,6 +198,202 @@ func (s *Server) handleRelayConnect(w http.ResponseWriter, r *http.Request) {
 		s.tunMu.Unlock()
 	}
 	writeJSON(w, map[string]any{"ok": true, "url": "http://" + tun.Addr()})
+}
+
+// ---- chat / text + clipboard ----
+
+func (s *Server) addMessage(m Message) {
+	s.msgMu.Lock()
+	s.messages = append(s.messages, m)
+	if len(s.messages) > 300 {
+		s.messages = s.messages[len(s.messages)-300:]
+	}
+	s.msgMu.Unlock()
+}
+
+// handleInbox receives a text message or clipboard item from another device.
+func (s *Server) handleInbox(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", 405)
+		return
+	}
+	var body struct {
+		From string `json:"from"`
+		Text string `json:"text"`
+		Kind string `json:"kind"`
+	}
+	if json.NewDecoder(r.Body).Decode(&body) != nil || body.Text == "" {
+		http.Error(w, "bad message", 400)
+		return
+	}
+	if body.Kind == "" {
+		body.Kind = "chat"
+	}
+	if body.Kind == "clip" {
+		// Apply to our clipboard if sync is on; always also show it in chat.
+		s.msgMu.Lock()
+		on := s.clipSync
+		s.msgMu.Unlock()
+		if on {
+			if clip.WriteAll(body.Text) == nil {
+				s.msgMu.Lock()
+				s.clipLast = body.Text
+				s.msgMu.Unlock()
+			}
+		}
+	}
+	s.addMessage(Message{From: body.From, Text: body.Text, Kind: body.Kind, Mine: false, Time: time.Now().UnixMilli()})
+	s.broadcast("message", "")
+	_, _ = w.Write([]byte(`{"ok":true}`))
+}
+
+// handleSendMsg sends a chat text to a peer (or self), storing it locally too.
+func (s *Server) handleSendMsg(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Peer string `json:"peer"`
+		Text string `json:"text"`
+		Kind string `json:"kind"`
+	}
+	if json.NewDecoder(r.Body).Decode(&body) != nil || body.Text == "" {
+		http.Error(w, "bad message", 400)
+		return
+	}
+	if body.Kind == "" {
+		body.Kind = "chat"
+	}
+	// deliver to a specific peer, or broadcast to all known peers
+	if body.Peer != "" {
+		if err := s.deliverText(body.Peer, body.Text, body.Kind); err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+	} else {
+		for _, p := range s.peerList() {
+			_ = s.deliverText(p.ID, body.Text, body.Kind)
+		}
+	}
+	s.addMessage(Message{From: s.cfg.DeviceName, Text: body.Text, Kind: body.Kind, Mine: true, Time: time.Now().UnixMilli()})
+	s.broadcast("message", "")
+	_, _ = w.Write([]byte(`{"ok":true}`))
+}
+
+func (s *Server) deliverText(peerID, text, kind string) error {
+	peer := s.findPeer(peerID)
+	if peer == nil {
+		return fmt.Errorf("peer not found")
+	}
+	payload, _ := json.Marshal(map[string]string{"from": s.cfg.DeviceName, "text": text, "kind": kind})
+	base := fmt.Sprintf("http://%s:%d", peer.IP, peer.Port)
+	resp, err := httpClient().Post(base+"/api/inbox", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("peer error %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (s *Server) handleMessages(w http.ResponseWriter, _ *http.Request) {
+	s.msgMu.Lock()
+	out := make([]Message, len(s.messages))
+	copy(out, s.messages)
+	s.msgMu.Unlock()
+	writeJSON(w, map[string]any{"messages": out})
+}
+
+// handleClipSend sends the given text as a clipboard item to all peers now.
+func (s *Server) handleClipSend(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Text string `json:"text"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	text := body.Text
+	if text == "" && clip.Supported() {
+		text, _ = clip.ReadAll() // fall back to this device's clipboard
+	}
+	if text == "" {
+		http.Error(w, "nothing to send", 400)
+		return
+	}
+	s.broadcastClip(text)
+	s.addMessage(Message{From: s.cfg.DeviceName, Text: text, Kind: "clip", Mine: true, Time: time.Now().UnixMilli()})
+	s.broadcast("message", "")
+	_, _ = w.Write([]byte(`{"ok":true}`))
+}
+
+// broadcastClip sends a clipboard item to every known peer.
+func (s *Server) broadcastClip(text string) {
+	for _, p := range s.peerList() {
+		_ = s.deliverText(p.ID, text, "clip")
+	}
+}
+
+func (s *Server) peerList() []discovery.Peer {
+	peers := s.disc.Peers()
+	seen := map[string]bool{}
+	for _, p := range peers {
+		seen[p.ID] = true
+	}
+	s.mu.RLock()
+	for _, p := range s.manual {
+		if !seen[p.ID] {
+			peers = append(peers, *p)
+		}
+	}
+	s.mu.RUnlock()
+	return peers
+}
+
+// SetClipSync turns desktop clipboard auto-sync on or off.
+func (s *Server) SetClipSync(on bool) {
+	s.msgMu.Lock()
+	if on == s.clipSync {
+		s.msgMu.Unlock()
+		return
+	}
+	s.clipSync = on
+	if on && clip.Supported() {
+		s.clipStop = make(chan struct{})
+		stop := s.clipStop
+		s.msgMu.Unlock()
+		go s.clipWatch(stop)
+		return
+	}
+	if !on && s.clipStop != nil {
+		close(s.clipStop)
+		s.clipStop = nil
+	}
+	s.msgMu.Unlock()
+}
+
+// clipWatch polls the OS clipboard and sends changes to peers (desktop only).
+func (s *Server) clipWatch(stop chan struct{}) {
+	t := time.NewTicker(800 * time.Millisecond)
+	defer t.Stop()
+	for {
+		select {
+		case <-stop:
+			return
+		case <-t.C:
+			cur, err := clip.ReadAll()
+			if err != nil || cur == "" {
+				continue
+			}
+			s.msgMu.Lock()
+			changed := cur != s.clipLast
+			if changed {
+				s.clipLast = cur
+			}
+			s.msgMu.Unlock()
+			if changed {
+				s.broadcastClip(cur)
+				s.addMessage(Message{From: s.cfg.DeviceName, Text: cur, Kind: "clip", Mine: true, Time: time.Now().UnixMilli()})
+				s.broadcast("message", "")
+			}
+		}
+	}
 }
 
 // EnableRemote starts the remote-desktop host immediately (used by --remote).
@@ -352,12 +571,14 @@ func (s *Server) handleInfo(w http.ResponseWriter, _ *http.Request) {
 		"device": map[string]string{
 			"id": s.cfg.DeviceID, "name": s.cfg.DeviceName, "kind": s.cfg.DeviceKind,
 		},
-		"port":        s.cfg.HTTPPort,
-		"save_dir":    s.cfg.SaveDir,
-		"auto_accept": s.cfg.AutoAccept,
-		"relay_addr":  s.cfg.RelayAddr,
-		"ips":         ips,
-		"url":         fmt.Sprintf("http://%s:%d", primary, s.cfg.HTTPPort),
+		"port":           s.cfg.HTTPPort,
+		"save_dir":       s.cfg.SaveDir,
+		"auto_accept":    s.cfg.AutoAccept,
+		"relay_addr":     s.cfg.RelayAddr,
+		"clip_sync":      s.cfg.ClipSync,
+		"clip_supported": clip.Supported(),
+		"ips":            ips,
+		"url":            fmt.Sprintf("http://%s:%d", primary, s.cfg.HTTPPort),
 	})
 }
 
@@ -694,6 +915,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		SaveDir    *string `json:"save_dir"`
 		AutoAccept *bool   `json:"auto_accept"`
 		RelayAddr  *string `json:"relay_addr"`
+		ClipSync   *bool   `json:"clip_sync"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
 	if body.DeviceName != nil && *body.DeviceName != "" {
@@ -708,6 +930,10 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	if body.RelayAddr != nil && *body.RelayAddr != s.relayAddr {
 		s.cfg.RelayAddr = strings.TrimSpace(*body.RelayAddr)
 		s.EnableRelay(s.cfg.RelayAddr)
+	}
+	if body.ClipSync != nil {
+		s.cfg.ClipSync = *body.ClipSync
+		s.SetClipSync(*body.ClipSync)
 	}
 	_ = s.cfg.Save()
 	writeJSON(w, map[string]any{"ok": true})

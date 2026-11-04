@@ -99,6 +99,10 @@ func main() {
 		fmt.Printf("  Internet relay: %s — your connection code is %s\n", effectiveRelay, code)
 	}
 
+	if cfg.ClipSync {
+		srv.SetClipSync(true)
+	}
+
 	go func() {
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			fmt.Fprintln(os.Stderr, "server error:", err)

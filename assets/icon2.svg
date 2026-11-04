@@ -1,0 +1,33 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4F46E5"/>
+      <stop offset="0.5" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="arrowTop" x1="128" y1="196" x2="384" y2="196" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#E6F7FF"/>
+    </linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0B1030" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+
+  <!-- two devices (rounded dots) top-left and bottom-right -->
+  <circle cx="150" cy="150" r="30" fill="#ffffff" fill-opacity="0.95"/>
+  <circle cx="362" cy="362" r="30" fill="#ffffff" fill-opacity="0.95"/>
+
+  <!-- exchange arrows between them -->
+  <g filter="url(#sh)">
+    <!-- top arrow: left -> right -->
+    <path fill="url(#arrowTop)" d="M150 214
+      h150 v-30 l66 56 -66 56 v-30 h-150 a24 24 0 0 1 -24 -24 v-4 a24 24 0 0 1 24 -24 z"
+      transform="translate(0,6)"/>
+    <!-- bottom arrow: right -> left -->
+    <path fill="#ffffff" d="M362 298
+      h-150 v-30 l-66 56 66 56 v-30 h150 a24 24 0 0 0 24 -24 v-4 a24 24 0 0 0 -24 -24 z"
+      transform="translate(0,-6)"/>
+  </g>
+</svg>

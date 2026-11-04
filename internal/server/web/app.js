@@ -45,6 +45,11 @@
     $("#saveDir").textContent = ME.save_dir;
     $("#setName").value = ME.device.name;
     $("#setAuto").checked = !!ME.auto_accept;
+    if (ME.clip_supported) {
+      $("#clipRow").hidden = false;
+      $("#clipHint").hidden = false;
+      $("#setClip").checked = !!ME.clip_sync;
+    }
     $("#aboutVer").textContent = "v" + ME.version;
     $("#aboutCompany").textContent = ME.company;
     $("#aboutDev").textContent = "Developed by " + ME.developer;
@@ -211,6 +216,54 @@
     loadHistory();
   });
 
+  // ---- chat / text + clipboard ----
+  async function loadChat() {
+    let msgs = [];
+    try { msgs = (await (await fetch("/api/messages")).json()).messages || []; } catch (e) {}
+    const list = $("#chatList");
+    if (!list) return;
+    list.innerHTML = "";
+    $("#noChat").hidden = msgs.length > 0;
+    msgs.forEach(m => {
+      const el = document.createElement("div");
+      el.className = "msg " + (m.mine ? "mine" : "them");
+      const tag = m.kind === "clip" ? "📋 " : "";
+      el.innerHTML = `<div class="bub">${tag}${esc(m.text)}</div><div class="meta">${m.mine ? "you" : esc(m.from)}</div>`;
+      el.querySelector(".bub").addEventListener("click", () => {
+        try { navigator.clipboard.writeText(m.text); toast("Copied", "ok"); } catch (e) {}
+      });
+      list.appendChild(el);
+    });
+    list.scrollTop = list.scrollHeight;
+  }
+  async function sendMessage() {
+    const inp = $("#chatInput");
+    const text = inp.value.trim();
+    if (!text) return;
+    inp.value = "";
+    await fetch("/api/message", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+    loadChat();
+  }
+  $("#sendMsg")?.addEventListener("click", sendMessage);
+  $("#chatInput")?.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+  async function sendClipboard() {
+    let text = "";
+    try { text = await navigator.clipboard.readText(); } catch (e) {}
+    const r = await fetch("/api/clipboard/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+    if (r.ok) { toast("Clipboard sent", "ok"); loadChat(); }
+    else { toast("Nothing to send / not allowed", "err"); }
+  }
+  $("#sendClip")?.addEventListener("click", sendClipboard);
+
+  // keyboard shortcuts (desktop)
+  window.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const k = e.key.toLowerCase();
+    if (e.shiftKey && k === "c") { e.preventDefault(); sendClipboard(); }       // Ctrl+Shift+C send clipboard
+    else if (e.shiftKey && k === "f") { e.preventDefault(); activateTab("send"); $("#filePicker")?.click(); } // Ctrl+Shift+F pick files
+    else if (e.shiftKey && k === "m") { e.preventDefault(); activateTab("chat"); $("#chatInput")?.focus(); }  // Ctrl+Shift+M chat
+  });
+
   // ---- internet relay ----
   async function refreshRelay() {
     try {
@@ -303,7 +356,7 @@
 
   // ---- settings ----
   $("#saveSettings").addEventListener("click", async () => {
-    const body = { device_name: $("#setName").value.trim(), auto_accept: $("#setAuto").checked };
+    const body = { device_name: $("#setName").value.trim(), auto_accept: $("#setAuto").checked, clip_sync: $("#setClip").checked };
     await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     toast("Saved", "ok");
     loadInfo();
@@ -345,6 +398,7 @@
     es.onerror = () => { $("#statusDot").classList.remove("on"); $("#statusText").textContent = "reconnecting…"; };
     es.addEventListener("peers", loadPeers);
     es.addEventListener("history", loadHistory);
+    es.addEventListener("message", loadChat);
     es.addEventListener("incoming", (e) => {
       try { const d = JSON.parse(e.data); toast(`Received ${d.count} file(s) from ${d.from}`, "ok"); } catch (x) {}
       loadHistory();
@@ -405,6 +459,7 @@
     await loadHistory();
     await refreshRemote();
     await refreshRelay();
+    await loadChat();
     connectSSE();
     setInterval(loadPeers, 5000); // safety refresh in case SSE drops
   })();
