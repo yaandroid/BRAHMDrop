@@ -182,19 +182,63 @@
       el.className = "hrow";
       const cls = r.status === "error" ? "h-err" : (r.direction === "in" ? "h-in" : "h-out");
       const ic = r.status === "error" ? "⚠️" : (r.direction === "in" ? "⬇️" : "⬆️");
-      const names = (r.files || []).map(f => f.name).join(", ") || "(no files)";
       const verb = r.direction === "in" ? "from" : "to";
       const sub = r.status === "error"
         ? "Failed: " + (r.error || "")
         : `${verb} ${esc(r.peer)} · ${human(r.bytes)} · ${timeago(r.time)}`;
+
+      const files = r.files || [];
+      const filesHtml = files.length
+        ? files.map(f => {
+            const label = fileIcon(f.name) + " " + esc(f.name);
+            if (r.direction === "in" && f.saved) {
+              return `<span class="h-file" data-saved="${esc(f.saved)}">${label}</span>`;
+            }
+            return `<span class="h-file plain">${label}</span>`;
+          }).join("")
+        : '<span class="h-file plain">(no files)</span>';
+
       el.innerHTML = `<div class="h-ic ${cls}">${ic}</div>
-        <div class="h-main"><div class="h-title">${esc(names)}</div><div class="h-sub">${sub}</div></div>`;
+        <div class="h-main"><div class="h-files">${filesHtml}</div><div class="h-sub">${sub}</div></div>`;
       list.appendChild(el);
+      el.querySelectorAll(".h-file[data-saved]").forEach(sp => {
+        sp.addEventListener("click", () => openFile(sp.dataset.saved));
+      });
     });
   }
   $("#clearHist").addEventListener("click", async () => {
     await fetch("/api/history/clear", { method: "POST" });
     loadHistory();
+  });
+
+  // ---- internet relay ----
+  async function refreshRelay() {
+    try {
+      const d = await (await fetch("/api/relay/status")).json();
+      if (d.enabled) {
+        $("#relayInfo").hidden = false;
+        $("#relayCode").textContent = d.code || "———";
+        $("#relayDot").style.color = d.connected ? "#16a34a" : "#f59e0b";
+        if (ME && ME.relay_addr) $("#relayAddr").value = ME.relay_addr;
+      }
+    } catch (e) {}
+  }
+  $("#saveRelay")?.addEventListener("click", async () => {
+    const addr = $("#relayAddr").value.trim();
+    await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ relay_addr: addr }) });
+    toast(addr ? "Relay set — connecting…" : "Internet off", "ok");
+    setTimeout(refreshRelay, 1200);
+  });
+  $("#connectCode")?.addEventListener("click", async () => {
+    const code = $("#connCode").value.trim();
+    if (!code) { toast("Enter a code", "err"); return; }
+    try {
+      const r = await fetch("/api/relay/connect?code=" + encodeURIComponent(code));
+      if (!r.ok) { toast(await r.text(), "err"); return; }
+      const d = await r.json();
+      toast("Connected — opening device", "ok");
+      window.open(d.url, "_blank");   // opens the remote device's full UI over the internet
+    } catch (e) { toast("Could not connect", "err"); }
   });
 
   // ---- remote desktop ----
@@ -281,6 +325,29 @@
     });
   }
 
+  // ---- open a received file ----
+  function openFile(saved) {
+    if (!saved) return;
+    // On Android, use the native bridge so it opens in the gallery / player / viewer.
+    if (window.AndroidBridge && window.AndroidBridge.openFile) {
+      try { window.AndroidBridge.openFile(saved); return; } catch (e) {}
+    }
+    // Desktop / browser: open via the local server (images, video, pdf, audio
+    // render inline; other types download).
+    window.open("/api/file?path=" + encodeURIComponent(saved), "_blank");
+  }
+  function fileIcon(name) {
+    const e = (name.split(".").pop() || "").toLowerCase();
+    if (["jpg","jpeg","png","gif","webp","bmp","heic","svg"].includes(e)) return "🖼️";
+    if (["mp4","mkv","mov","avi","webm","3gp","m4v"].includes(e)) return "🎬";
+    if (["mp3","wav","aac","ogg","m4a","flac"].includes(e)) return "🎵";
+    if (["pdf"].includes(e)) return "📄";
+    if (["doc","docx","xls","xlsx","ppt","pptx","txt","csv"].includes(e)) return "📝";
+    if (["zip","rar","7z","tar","gz"].includes(e)) return "🗜️";
+    if (["apk"].includes(e)) return "📦";
+    return "📎";
+  }
+
   // ---- helpers ----
   function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
   function human(b) {
@@ -308,6 +375,7 @@
     await loadPeers();
     await loadHistory();
     await refreshRemote();
+    await refreshRelay();
     connectSSE();
     setInterval(loadPeers, 5000); // safety refresh in case SSE drops
   })();

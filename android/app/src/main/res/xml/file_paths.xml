@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Received files may live in public storage (Downloads/BRAHM Drop) or in
+         the app's own external folder. Cover both so any received file can be
+         opened with the right app. -->
+    <external-path name="external_storage" path="." />
+    <external-files-path name="external_files" path="." />
+    <files-path name="internal_files" path="." />
+</paths>

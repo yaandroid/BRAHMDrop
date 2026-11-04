@@ -11,6 +11,8 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.webkit.JavascriptInterface
+import android.webkit.MimeTypeMap
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -21,6 +23,8 @@ import android.webkit.WebViewClient
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import java.io.File
 
 /**
  * MainActivity requests the media/file permissions from code, starts the
@@ -85,6 +89,9 @@ class MainActivity : AppCompatActivity() {
             cacheMode = WebSettings.LOAD_NO_CACHE
             mediaPlaybackRequiresUserGesture = false
         }
+
+        // Bridge so the web UI can open a received file with the right app.
+        web.addJavascriptInterface(WebBridge(), "AndroidBridge")
 
         web.webViewClient = object : WebViewClient() {
             // Only retry when the MAIN page fails to load (e.g. the local server
@@ -236,5 +243,35 @@ class MainActivity : AppCompatActivity() {
 
     override fun onBackPressed() {
         if (web.canGoBack()) web.goBack() else super.onBackPressed()
+    }
+
+    /** JavaScript bridge: open a received file in the appropriate app. */
+    inner class WebBridge {
+        @JavascriptInterface
+        fun openFile(path: String) {
+            runOnUiThread { doOpen(path) }
+        }
+    }
+
+    private fun doOpen(path: String) {
+        try {
+            val f = File(path)
+            if (!f.exists()) {
+                android.widget.Toast.makeText(this, "File not found", android.widget.Toast.LENGTH_SHORT).show()
+                return
+            }
+            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", f)
+            val ext = f.extension.lowercase()
+            val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+            val view = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, mime)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(Intent.createChooser(view, "Open with").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(this, "Could not open: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 }

@@ -28,6 +28,7 @@ type Config struct {
 	SaveDir    string `json:"save_dir"`    // where received files land
 	HTTPPort   int    `json:"http_port"`
 	AutoAccept bool   `json:"auto_accept"` // accept incoming without a prompt
+	RelayAddr  string `json:"relay_addr"`  // VPS relay host:port (internet access)
 
 	mu   sync.Mutex `json:"-"`
 	path string     `json:"-"`

@@ -11,13 +11,17 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"brahmdrop/internal/config"
 	"brahmdrop/internal/discovery"
 	"brahmdrop/internal/netutil"
+	"brahmdrop/internal/relay"
 	"brahmdrop/internal/remote"
 	"brahmdrop/internal/transfer"
 
@@ -40,6 +44,12 @@ type Server struct {
 
 	remoteMu sync.Mutex
 	remote   *remote.Host // AnyDesk-style remote desktop host (nil until enabled)
+
+	relayAddr string           // VPS relay address (empty = internet off)
+	relayHost *relay.HostAgent // publishes this device over the internet
+	relayCode string           // this device's connection code
+	tunMu     sync.Mutex
+	tunnels   map[string]*relay.ViewerTunnel // code -> open viewer tunnel
 }
 
 // New creates a Server.
@@ -50,6 +60,7 @@ func New(cfg *config.Config, hist *transfer.Store) *Server {
 		manual:  make(map[string]*discovery.Peer),
 		pending: make(map[string]chan bool),
 		subs:    make(map[chan string]struct{}),
+		tunnels: make(map[string]*relay.ViewerTunnel),
 	}
 	s.disc = discovery.New(discovery.Self{
 		ID:      cfg.DeviceID,
@@ -77,9 +88,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/respond", s.handleRespond) // accept/decline incoming
 	mux.HandleFunc("/api/history", s.handleHistory)
 	mux.HandleFunc("/api/history/clear", s.handleHistoryClear)
+	mux.HandleFunc("/api/file", s.handleFile) // open/serve a received file
 	mux.HandleFunc("/api/settings", s.handleSettings)
 	mux.HandleFunc("/api/qr", s.handleQR)
 	mux.HandleFunc("/api/events", s.handleEvents)
+
+	// Internet relay (connect from anywhere)
+	mux.HandleFunc("/api/relay/status", s.handleRelayStatus)
+	mux.HandleFunc("/api/relay/connect", s.handleRelayConnect)
 
 	// Remote desktop (Phase 3)
 	mux.HandleFunc("/api/remote/enable", s.handleRemoteEnable)
@@ -90,6 +106,70 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("/", s.handleStatic)
 	return withCORS(mux)
+}
+
+// EnableRelay points this device at a VPS relay so it can be reached from
+// anywhere by its connection code, and starts publishing. Passing an empty
+// address turns internet access off.
+func (s *Server) EnableRelay(relayAddr string) string {
+	if s.relayHost != nil {
+		s.relayHost.Stop()
+		s.relayHost = nil
+	}
+	s.relayAddr = relayAddr
+	if relayAddr == "" {
+		s.relayCode = ""
+		return ""
+	}
+	s.relayCode = relay.CodeFromID(s.cfg.DeviceID)
+	local := fmt.Sprintf("127.0.0.1:%d", s.cfg.HTTPPort)
+	s.relayHost = relay.NewHostAgent(relayAddr, s.relayCode, s.cfg.DeviceName, local, func(connected bool) {
+		s.broadcast("relay", fmt.Sprintf(`{"connected":%v}`, connected))
+	})
+	s.relayHost.Start()
+	return s.relayCode
+}
+
+func (s *Server) handleRelayStatus(w http.ResponseWriter, _ *http.Request) {
+	if s.relayHost == nil {
+		writeJSON(w, map[string]any{"enabled": false})
+		return
+	}
+	writeJSON(w, map[string]any{
+		"enabled":   true,
+		"code":      s.relayCode,
+		"connected": s.relayHost.Connected(),
+		"relay":     s.relayAddr,
+	})
+}
+
+// handleRelayConnect opens (or reuses) a tunnel to a remote device by code and
+// returns a local URL that mirrors that device's full UI over the internet.
+func (s *Server) handleRelayConnect(w http.ResponseWriter, r *http.Request) {
+	if s.relayAddr == "" {
+		http.Error(w, "internet relay is not configured on this device", http.StatusServiceUnavailable)
+		return
+	}
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		http.Error(w, "code required", 400)
+		return
+	}
+	s.tunMu.Lock()
+	tun, ok := s.tunnels[code]
+	s.tunMu.Unlock()
+	if !ok {
+		var err error
+		tun, err = relay.OpenViewerTunnel(s.relayAddr, code)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		s.tunMu.Lock()
+		s.tunnels[code] = tun
+		s.tunMu.Unlock()
+	}
+	writeJSON(w, map[string]any{"ok": true, "url": "http://" + tun.Addr()})
 }
 
 // EnableRemote starts the remote-desktop host immediately (used by --remote).
@@ -228,6 +308,7 @@ func (s *Server) handleInfo(w http.ResponseWriter, _ *http.Request) {
 		"port":        s.cfg.HTTPPort,
 		"save_dir":    s.cfg.SaveDir,
 		"auto_accept": s.cfg.AutoAccept,
+		"relay_addr":  s.cfg.RelayAddr,
 		"ips":         ips,
 		"url":         fmt.Sprintf("http://%s:%d", primary, s.cfg.HTTPPort),
 	})
@@ -517,6 +598,43 @@ func (s *Server) handleHistory(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"records": s.hist.List()})
 }
 
+// handleFile serves a received file so it can be opened or downloaded. Only
+// files inside the configured save directory are allowed (no path traversal).
+func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
+	p := r.URL.Query().Get("path")
+	if p == "" {
+		http.Error(w, "path required", 400)
+		return
+	}
+	abs, err := filepath.Abs(filepath.Clean(p))
+	if err != nil {
+		http.Error(w, "bad path", 400)
+		return
+	}
+	base, err := filepath.Abs(s.cfg.SaveDir)
+	if err != nil {
+		http.Error(w, "server error", 500)
+		return
+	}
+	// must live inside the save directory
+	if abs != base && !strings.HasPrefix(abs, base+string(filepath.Separator)) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	info, err := os.Stat(abs)
+	if err != nil || info.IsDir() {
+		http.Error(w, "file not found (it may have been moved or deleted)", http.StatusNotFound)
+		return
+	}
+	if ct := mime.TypeByExtension(filepath.Ext(abs)); ct != "" {
+		w.Header().Set("Content-Type", ct)
+	}
+	if r.URL.Query().Get("dl") == "1" {
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+filepath.Base(abs)+"\"")
+	}
+	http.ServeFile(w, r, abs)
+}
+
 func (s *Server) handleHistoryClear(w http.ResponseWriter, _ *http.Request) {
 	s.hist.Clear()
 	s.broadcast("history", "")
@@ -528,6 +646,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		DeviceName *string `json:"device_name"`
 		SaveDir    *string `json:"save_dir"`
 		AutoAccept *bool   `json:"auto_accept"`
+		RelayAddr  *string `json:"relay_addr"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
 	if body.DeviceName != nil && *body.DeviceName != "" {
@@ -538,6 +657,10 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.AutoAccept != nil {
 		s.cfg.AutoAccept = *body.AutoAccept
+	}
+	if body.RelayAddr != nil && *body.RelayAddr != s.relayAddr {
+		s.cfg.RelayAddr = strings.TrimSpace(*body.RelayAddr)
+		s.EnableRelay(s.cfg.RelayAddr)
 	}
 	_ = s.cfg.Save()
 	writeJSON(w, map[string]any{"ok": true})

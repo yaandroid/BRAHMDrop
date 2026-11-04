@@ -64,6 +64,24 @@
   <!-- REMOTE -->
   <section class="panel" id="panel-remote">
     <div class="card">
+      <h3>Internet — connect from anywhere</h3>
+      <p class="muted small">Set your relay server once (runs on your VPS). Then this device gets a connection code that works from any network — no same‑Wi‑Fi needed.</p>
+      <label class="field">
+        <span>Relay server (your VPS)</span>
+        <input type="text" id="relayAddr" placeholder="e.g. 203.0.113.9:53333"/>
+      </label>
+      <button class="btn" id="saveRelay">Save &amp; connect</button>
+      <div id="relayInfo" hidden style="margin-top:10px">
+        <div class="muted small">Your connection code <span id="relayDot" style="color:#f59e0b">●</span></div>
+        <div class="urlbox" id="relayCode" style="font-size:22px;letter-spacing:3px;text-align:center">———</div>
+        <div class="muted small">Doosre device pe code daalo:</div>
+        <div class="rowgap" style="margin-top:6px">
+          <input type="text" id="connCode" placeholder="CODE e.g. ABC-123" style="flex:1"/>
+          <button class="btn small" id="connectCode" style="width:auto">Connect ›</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
       <h3>Let another device control this one</h3>
       <p class="muted small">Turn this on, then on the other phone/PC open BRAHM Drop → Remote → “Control another device”, enter this device’s address and the pairing code below.</p>
       <label class="switch">

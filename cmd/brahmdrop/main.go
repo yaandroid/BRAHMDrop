@@ -28,12 +28,13 @@ import (
 
 func main() {
 	var (
-		name     = flag.String("name", "", "device name shown to other devices")
-		port     = flag.Int("port", 0, "HTTP/transfer port (default 53330)")
-		dir      = flag.String("dir", "", "folder where received files are saved")
+		name       = flag.String("name", "", "device name shown to other devices")
+		port       = flag.Int("port", 0, "HTTP/transfer port (default 53330)")
+		dir        = flag.String("dir", "", "folder where received files are saved")
 		noBrowse   = flag.Bool("no-browser", false, "do not open the web UI in a browser")
 		remoteOn   = flag.Bool("remote", false, "start remote-desktop hosting immediately")
 		autoAccept = flag.Bool("auto-accept", false, "accept incoming files automatically (no prompt)")
+		relayAddr  = flag.String("relay", "", "VPS relay address host:port for internet access")
 		showVer    = flag.Bool("version", false, "print version and exit")
 	)
 	flag.Parse()
@@ -83,6 +84,19 @@ func main() {
 		} else {
 			fmt.Println("  Remote desktop could not start:", err)
 		}
+	}
+
+	// Internet relay: command-line flag wins, else whatever was saved in config.
+	effectiveRelay := *relayAddr
+	if effectiveRelay == "" {
+		effectiveRelay = cfg.RelayAddr
+	} else if effectiveRelay != cfg.RelayAddr {
+		cfg.RelayAddr = effectiveRelay
+		_ = cfg.Save()
+	}
+	if effectiveRelay != "" {
+		code := srv.EnableRelay(effectiveRelay)
+		fmt.Printf("  Internet relay: %s — your connection code is %s\n", effectiveRelay, code)
 	}
 
 	go func() {
