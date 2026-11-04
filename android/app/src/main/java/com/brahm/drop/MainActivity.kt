@@ -26,6 +26,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
+import org.json.JSONObject
 import java.io.File
 
 /**
@@ -72,6 +75,14 @@ class MainActivity : AppCompatActivity() {
     ) {
         // Restart the server so it picks the public Downloads folder if granted.
         restartServerIfNeeded()
+    }
+
+    // --- QR scanner ---
+    private val qrScan = registerForActivityResult(ScanContract()) { result ->
+        val text = result.contents
+        if (!text.isNullOrBlank()) {
+            web.post { web.evaluateJavascript("window.onScanResult && window.onScanResult(${JSONObject.quote(text)})", null) }
+        }
     }
 
     // --- MediaProjection (screen share) permission ---
@@ -295,6 +306,19 @@ class MainActivity : AppCompatActivity() {
                     startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 } catch (e: Exception) {
                 }
+            }
+        }
+
+        @JavascriptInterface
+        fun scanQR() {
+            runOnUiThread {
+                val opts = ScanOptions().apply {
+                    setPrompt("Scan the other device's QR")
+                    setBeepEnabled(false)
+                    setOrientationLocked(false)
+                    setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                }
+                qrScan.launch(opts)
             }
         }
     }

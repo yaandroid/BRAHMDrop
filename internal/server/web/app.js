@@ -294,6 +294,34 @@
     } catch (e) { toast("Could not connect", "err"); }
   });
 
+  // ---- QR scan (Android) ----
+  if (window.AndroidBridge && window.AndroidBridge.scanQR) {
+    const b = $("#scanQrBtn");
+    if (b) {
+      b.hidden = false;
+      b.addEventListener("click", () => { try { window.AndroidBridge.scanQR(); } catch (e) {} });
+    }
+  }
+  window.onScanResult = async function (text) {
+    if (!text) return;
+    text = String(text).trim();
+    try {
+      if (/^https?:\/\//i.test(text)) {
+        // device URL -> add as a peer
+        const u = new URL(text);
+        const port = u.port ? parseInt(u.port) : 53330;
+        const r = await fetch("/api/peers/add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ip: u.hostname, port }) });
+        if (r.ok) { toast("Device added — ready to send", "ok"); activateTab("send"); loadPeers(); }
+        else { toast(await r.text(), "err"); }
+      } else {
+        // treat as an internet connection code
+        const r = await fetch("/api/relay/connect?code=" + encodeURIComponent(text));
+        if (r.ok) { const d = await r.json(); toast("Connected", "ok"); window.open(d.url, "_blank"); }
+        else { toast(await r.text(), "err"); }
+      }
+    } catch (e) { toast("Could not use that QR", "err"); }
+  };
+
   // ---- Android: share this phone's screen ----
   const isAndroid = !!(window.AndroidBridge && window.AndroidBridge.isAndroid && window.AndroidBridge.isAndroid());
   if (isAndroid) {
