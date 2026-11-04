@@ -4,6 +4,8 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.Context
+import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -70,6 +72,20 @@ class MainActivity : AppCompatActivity() {
     ) {
         // Restart the server so it picks the public Downloads folder if granted.
         restartServerIfNeeded()
+    }
+
+    // --- MediaProjection (screen share) permission ---
+    private val screenReq = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK && result.data != null) {
+            val svc = Intent(this, ScreenShareService::class.java).apply {
+                putExtra(ScreenShareService.EXTRA_RESULT, result.resultCode)
+                putExtra(ScreenShareService.EXTRA_DATA, result.data)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(svc) else startService(svc)
+            web.post { web.evaluateJavascript("window.onScreenShareStarted && window.onScreenShareStarted()", null) }
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -245,11 +261,41 @@ class MainActivity : AppCompatActivity() {
         if (web.canGoBack()) web.goBack() else super.onBackPressed()
     }
 
-    /** JavaScript bridge: open a received file in the appropriate app. */
+    /** JavaScript bridge: open files, control screen sharing, accessibility. */
     inner class WebBridge {
         @JavascriptInterface
         fun openFile(path: String) {
             runOnUiThread { doOpen(path) }
+        }
+
+        // true so the web UI knows it's running inside the Android app.
+        @JavascriptInterface
+        fun isAndroid(): Boolean = true
+
+        @JavascriptInterface
+        fun startScreenShare() {
+            runOnUiThread {
+                val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+                screenReq.launch(mpm.createScreenCaptureIntent())
+            }
+        }
+
+        @JavascriptInterface
+        fun stopScreenShare() {
+            runOnUiThread { stopService(Intent(this@MainActivity, ScreenShareService::class.java)) }
+        }
+
+        @JavascriptInterface
+        fun isControlEnabled(): Boolean = BrahmAccessibilityService.instance != null
+
+        @JavascriptInterface
+        fun openAccessibilitySettings() {
+            runOnUiThread {
+                try {
+                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                } catch (e: Exception) {
+                }
+            }
         }
     }
 

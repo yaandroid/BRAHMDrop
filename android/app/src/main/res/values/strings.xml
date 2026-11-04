@@ -3,4 +3,5 @@
     <string name="app_name">BRAHM Drop</string>
     <string name="service_channel">BRAHM Drop running</string>
     <string name="service_text">File transfer is active on your Wi‑Fi</string>
+    <string name="accessibility_desc">Lets a device you authorise control this phone remotely (taps and swipes) while screen sharing is on. You can turn this off any time.</string>
 </resources>

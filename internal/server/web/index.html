@@ -81,6 +81,18 @@
         </div>
       </div>
     </div>
+    <div class="card" id="androidShareCard" hidden>
+      <h3>Share this phone’s screen</h3>
+      <p class="muted small">Let another device see and control this phone. Turn it on, then on the other device open BRAHM Drop → Remote → “Control another device” and enter this phone’s address (or internet code) with the pairing code below.</p>
+      <button class="btn" id="startShare">Share my screen</button>
+      <button class="btn ghost" id="stopShare" hidden style="margin-top:8px">Stop sharing</button>
+      <div id="shareInfo" hidden style="margin-top:10px">
+        <div class="muted small">Pairing code</div>
+        <div class="urlbox" id="shareCode" style="font-size:22px;letter-spacing:4px;text-align:center">------</div>
+      </div>
+      <p class="muted small" style="margin-top:10px">Control (taps/swipes) needs the BRAHM Drop accessibility service enabled once.</p>
+      <button class="btn ghost small" id="enableControl" style="width:auto">Enable control (Accessibility)</button>
+    </div>
     <div class="card">
       <h3>Let another device control this one</h3>
       <p class="muted small">Turn this on, then on the other phone/PC open BRAHM Drop → Remote → “Control another device”, enter this device’s address and the pairing code below.</p>

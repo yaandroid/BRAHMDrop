@@ -97,7 +97,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/relay/status", s.handleRelayStatus)
 	mux.HandleFunc("/api/relay/connect", s.handleRelayConnect)
 
-	// Remote desktop (Phase 3)
+	// Android screen host (MediaProjection frames + Accessibility input)
+	mux.HandleFunc("/api/remote/android/enable", s.handleAndroidEnable)
+	mux.HandleFunc("/api/remote/android/frame", s.handleAndroidFrame)
+	mux.HandleFunc("/api/remote/android/input", s.handleAndroidInput)
+
+	// Remote desktop
 	mux.HandleFunc("/api/remote/enable", s.handleRemoteEnable)
 	mux.HandleFunc("/api/remote/disable", s.handleRemoteDisable)
 	mux.HandleFunc("/api/remote/status", s.handleRemoteStatus)
@@ -175,6 +180,48 @@ func (s *Server) handleRelayConnect(w http.ResponseWriter, r *http.Request) {
 // EnableRemote starts the remote-desktop host immediately (used by --remote).
 func (s *Server) EnableRemote() (string, error) {
 	return s.ensureRemote(true)
+}
+
+// ---- Android screen host (MediaProjection frames + Accessibility input) ----
+
+func (s *Server) handleAndroidEnable(w http.ResponseWriter, _ *http.Request) {
+	s.remoteMu.Lock()
+	if s.remote != nil {
+		s.remote.Stop()
+	}
+	s.remote = remote.NewExternalHost()
+	s.remote.Start()
+	code := s.remote.Code()
+	s.remoteMu.Unlock()
+	writeJSON(w, map[string]any{"ok": true, "code": code})
+}
+
+func (s *Server) handleAndroidFrame(w http.ResponseWriter, r *http.Request) {
+	s.remoteMu.Lock()
+	h := s.remote
+	s.remoteMu.Unlock()
+	if h == nil {
+		http.Error(w, "android host not enabled", http.StatusServiceUnavailable)
+		return
+	}
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 8<<20)) // 8MB/frame cap
+	if err != nil || len(body) == 0 {
+		http.Error(w, "bad frame", 400)
+		return
+	}
+	h.PushFrame(body)
+	_, _ = w.Write([]byte(`{"ok":true}`))
+}
+
+func (s *Server) handleAndroidInput(w http.ResponseWriter, _ *http.Request) {
+	s.remoteMu.Lock()
+	h := s.remote
+	s.remoteMu.Unlock()
+	if h == nil {
+		writeJSON(w, map[string]any{"events": []any{}})
+		return
+	}
+	writeJSON(w, map[string]any{"events": h.PullInputs()})
 }
 
 func (s *Server) ensureRemote(start bool) (string, error) {

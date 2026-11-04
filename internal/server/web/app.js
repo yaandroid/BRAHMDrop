@@ -241,6 +241,35 @@
     } catch (e) { toast("Could not connect", "err"); }
   });
 
+  // ---- Android: share this phone's screen ----
+  const isAndroid = !!(window.AndroidBridge && window.AndroidBridge.isAndroid && window.AndroidBridge.isAndroid());
+  if (isAndroid) {
+    const card = $("#androidShareCard");
+    if (card) card.hidden = false;
+  }
+  window.onScreenShareStarted = function () {
+    $("#startShare").hidden = true;
+    $("#stopShare").hidden = false;
+    toast("Screen sharing ON", "ok");
+  };
+  $("#startShare")?.addEventListener("click", async () => {
+    try {
+      const d = await (await fetch("/api/remote/android/enable", { method: "POST" })).json();
+      $("#shareCode").textContent = d.code || "------";
+      $("#shareInfo").hidden = false;
+      if (window.AndroidBridge && window.AndroidBridge.startScreenShare) window.AndroidBridge.startScreenShare();
+    } catch (e) { toast("Could not start sharing", "err"); }
+  });
+  $("#stopShare")?.addEventListener("click", () => {
+    if (window.AndroidBridge && window.AndroidBridge.stopScreenShare) window.AndroidBridge.stopScreenShare();
+    $("#startShare").hidden = false;
+    $("#stopShare").hidden = true;
+    toast("Screen sharing stopped");
+  });
+  $("#enableControl")?.addEventListener("click", () => {
+    if (window.AndroidBridge && window.AndroidBridge.openAccessibilitySettings) window.AndroidBridge.openAccessibilitySettings();
+  });
+
   // ---- remote desktop ----
   $("#remoteHost")?.addEventListener("change", async (e) => {
     if (e.target.checked) {
