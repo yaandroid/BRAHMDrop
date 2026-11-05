@@ -4,6 +4,18 @@
 
 Brahm InnerBrain Technologies Pvt. Ltd. · Developed by Sandeep Kushwah · v1.1
 
+## ⬇️ Download (ready-to-use builds)
+
+| Platform | Download |
+|---|---|
+| **Android (APK)** | **[BRAHM-Drop-v1.1.apk](https://github.com/yaandroid/BRAHMDrop/raw/downloads/BRAHM-Drop-v1.1.apk)** |
+| **Windows (.exe)** | **[BRAHM-Drop.exe](https://github.com/yaandroid/BRAHMDrop/raw/downloads/BRAHM-Drop.exe)** · [ARM](https://github.com/yaandroid/BRAHMDrop/raw/downloads/BRAHM-Drop-ARM.exe) · [zip](https://github.com/yaandroid/BRAHMDrop/raw/downloads/BRAHM-Drop-Windows-v1.1.zip) |
+| **macOS** | **[BRAHM-Drop-Mac-v1.1.zip](https://github.com/yaandroid/BRAHMDrop/raw/downloads/BRAHM-Drop-Mac-v1.1.zip)** |
+| **Linux / VPS app** | [install-brahmdrop.sh](https://github.com/yaandroid/BRAHMDrop/raw/downloads/install-brahmdrop.sh) |
+| **Relay server (VPS)** | [install-brahm-relay.sh](https://github.com/yaandroid/BRAHMDrop/raw/downloads/install-brahm-relay.sh) |
+
+All builds live on the [`downloads`](https://github.com/yaandroid/BRAHMDrop/tree/downloads) branch. Android: uninstall the old app first, then install. Windows: if SmartScreen warns, **More info → Run anyway**.
+
 <p align="center">
   <img src="docs/demo.gif" alt="BRAHM Drop demo" width="300"/>
 </p>
