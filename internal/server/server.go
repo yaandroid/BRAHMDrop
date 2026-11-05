@@ -543,6 +543,11 @@ func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 	if path == "/sw.js" {
 		w.Header().Set("Service-Worker-Allowed", "/")
 	}
+	// Never let the browser cache the app shell — otherwise an updated build
+	// still shows the old UI until a hard refresh.
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	_, _ = w.Write(data)
 }
 

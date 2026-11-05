@@ -1,13 +1,10 @@
-// BRAHM Drop service worker — caches the app shell so it opens instantly and
-// works as an installed app. Never caches API or transfer responses.
-const CACHE = "brahmdrop-v1.1";
-const SHELL = [
-  "/", "/index.html", "/style.css", "/app.js",
-  "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/favicon.ico"
-];
+// BRAHM Drop service worker — network-first so an updated build always shows
+// the latest UI; the cache is only an offline fallback.
+const CACHE = "brahmdrop-v1.2";
+const SHELL = ["/", "/index.html", "/style.css", "/app.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/favicon.ico"];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => {}).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {
@@ -19,9 +16,17 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
-  // Always hit the network for the API and anything non-GET.
-  if (e.request.method !== "GET" || url.pathname.startsWith("/api/")) return;
+  if (e.request.method !== "GET" || url.pathname.startsWith("/api/")) return; // live
+  // Network-first: always try the server; fall back to cache only when offline.
   e.respondWith(
-    caches.match(e.request).then((hit) => hit || fetch(e.request).catch(() => caches.match("/index.html")))
+    fetch(e.request)
+      .then((resp) => {
+        try {
+          const copy = resp.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+        } catch (x) {}
+        return resp;
+      })
+      .catch(() => caches.match(e.request).then((hit) => hit || caches.match("/index.html")))
   );
 });
