@@ -1,0 +1,5 @@
+a1ec2e86fa6705eb262fdd2140b97cb96eaa511b9f08cb5e2556df8b4f12fe9c  BRAHM-Drop-v1.1.apk
+aa33a72bea6323e218962f0b521aaa3e8b81987e955200a73858f9c77a051497  BRAHM-Drop-Windows-v1.1.zip
+f2780154457a0918a42639d9768083416e5af52ba6329ded4c0a7f6c87257eeb  BRAHM-Drop-Mac-v1.1.zip
+e9e0aca5ddacaadae0d224addbc20e18b5daec426b84d858d44fc240a5c24df4  install-brahmdrop.sh
+db694b68931e09163f29bd2d91cc40fca430f74595def1b72cfcbb3879b08a7e  install-brahm-relay.sh
