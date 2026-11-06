@@ -306,6 +306,15 @@
     if (!text) return;
     text = String(text).trim();
     try {
+      if (text.indexOf("BRAHMREMOTE:") === 0) {
+        // remote screen: BRAHMREMOTE:<ip>:<port>:<code>
+        const rest = text.slice("BRAHMREMOTE:".length);
+        const parts = rest.split(":");
+        const ip = parts[0], port = parts[1] || "53330", rcode = parts[2] || "";
+        toast("Opening remote screen…", "ok");
+        window.open("/remote?host=" + encodeURIComponent(ip + ":" + port) + "&code=" + encodeURIComponent(rcode), "_blank");
+        return;
+      }
       if (/^https?:\/\//i.test(text)) {
         // device URL -> add as a peer
         const u = new URL(text);
@@ -338,6 +347,13 @@
       const d = await (await fetch("/api/remote/android/enable", { method: "POST" })).json();
       $("#shareCode").textContent = d.code || "------";
       $("#shareInfo").hidden = false;
+      // Build a scan-to-view QR: BRAHMREMOTE:<ip>:<port>:<code>
+      const ip = (ME && ME.ips && ME.ips[0]) ? ME.ips[0] : "";
+      const port = (ME && ME.port) ? ME.port : 53330;
+      if (ip && d.code) {
+        const payload = "BRAHMREMOTE:" + ip + ":" + port + ":" + d.code;
+        $("#shareQr").src = "/api/qr?text=" + encodeURIComponent(payload);
+      }
       if (window.AndroidBridge && window.AndroidBridge.startScreenShare) window.AndroidBridge.startScreenShare();
     } catch (e) { toast("Could not start sharing", "err"); }
   });

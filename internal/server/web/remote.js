@@ -14,6 +14,17 @@
   $("#go").addEventListener("click", connect);
   $("#code").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
 
+  // Auto-connect when opened from a scanned QR (?host=ip:port&code=XXXX).
+  try {
+    const q = new URLSearchParams(location.search);
+    const qHost = q.get("host"), qCode = q.get("code");
+    if (qHost) {
+      $("#host").value = qHost;
+      if (qCode) $("#code").value = qCode;
+      setTimeout(connect, 300);
+    }
+  } catch (e) {}
+
   async function connect() {
     const h = $("#host").value.trim().replace(/^https?:\/\//, "").replace(/\/$/, "");
     code = $("#code").value.trim();
